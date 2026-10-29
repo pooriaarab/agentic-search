@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.2.0
+
+- Add `agentic-search/client`: a typed fetch client for every Worker route under `/api/v1`. `createClient({ baseUrl, token })` returns `health`, `search`, `index`, `remove`, `exportOwner`, and `eraseOwner`. A failed call throws `SearchApiError` with a `code` and the HTTP `status`. It uses only `fetch`.
+
 - Breaking: `normalizeToken` is no longer exported from `agentic-search`. It was internal. Use `tokenize(text)`, whose tokens hold a `term`, or `queryTerms(query)`. `tokenize` also splits on non-word characters, so its terms can differ from `normalizeToken` output for input with punctuation or spaces.
 - Document every SDK export in the README and llms.txt.
 

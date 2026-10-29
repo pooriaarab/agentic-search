@@ -6,7 +6,7 @@
 
 Search and indexing for documents, sheets, slides, files and comments, for people and agents. Ports and adapters, Cloudflare first.
 
-**Status:** version 0.1.0, first release. The library, the D1 adapter, the Worker API, the CLI, the MCP server and the vector port work. See Limits before you rely on it.
+**Status:** version 0.2.0. The library, the D1 adapter, the Worker API, the HTTP client, the CLI, the MCP server and the vector port work. See Limits before you rely on it.
 
 ## Install
 
@@ -115,6 +115,28 @@ Bindings: `DB` (D1, run `migrations/0001_init.sql`), `SEARCH_CURSOR_SECRET` (32 
 | `DELETE /api/v1/owners/:owner` | Erase everything one owner has indexed. |
 
 Errors: 400 bad input, 401 no principal, 403 not allowed, 413 and 415 bad body, 500 internal (no details).
+
+## HTTP client
+
+`agentic-search/client` is a typed client for the Worker routes. It uses only `fetch`, so it runs in browsers, Workers, and Node 22. It sends `Authorization: Bearer <token>`. Your `AuthVerifier` reads that header and decides who the caller is.
+
+```ts
+import { createClient, SearchApiError } from "agentic-search/client";
+
+const search = createClient({ baseUrl: "https://search.example.com", token });
+await search.index({ id: "a", kind: "document", title: "Plan", text: "quarterly budget plan", owner: "ann", resource: { type: "doc", id: "a" }, updatedAt: Date.now() });
+const page = await search.search({ query: "budget", limit: 10 });
+try {
+  await search.exportOwner("someone-else");
+} catch (error) {
+  if (error instanceof SearchApiError) console.error(error.code, error.status);
+}
+```
+
+- The methods are `health`, `search`, `index`, `remove`, `exportOwner`, and `eraseOwner`. Each takes an optional `{ signal }`.
+- `baseUrl` is the Worker URL, `http` or `https`, with no query, hash, or credentials. `token` is visible ASCII with no spaces or line breaks.
+- A failed call throws `SearchApiError`. The Worker sends only an error text, so `code` comes from the status: `INVALID_INPUT` (400), `UNAUTHENTICATED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `TOO_LARGE` (413), `UNSUPPORTED_MEDIA_TYPE` (415), `INTERNAL` (500). Any other status, and a `200` reply with the wrong shape, is `UNKNOWN`.
+- The client never follows a redirect and never retries. A network failure rejects with the error from `fetch`, not a `SearchApiError`, and so does an aborted call.
 
 ## Live demo
 

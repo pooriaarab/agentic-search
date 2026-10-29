@@ -1,6 +1,6 @@
 {
   "name": "agentic-search",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Search for documents, sheets, slides, files and comments, for people and agents. Ports and adapters, access filtered, Cloudflare first.",
   "keywords": [
     "search",
@@ -39,6 +39,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "import": "./dist/client.js"
     },
     "./testing": {
       "types": "./dist/testing/index-contract.d.ts",
