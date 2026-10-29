@@ -6,7 +6,7 @@
 
 Search and indexing for documents, sheets, slides, files and comments, for people and agents. Ports and adapters, Cloudflare first.
 
-**Status:** version 0.1.0, early. The core library works: model, memory index, access filter, erase and export. The D1 adapter, the Worker API, the CLI and the MCP server work. The default Worker has no real authentication. See the HTTP API section.
+**Status:** version 0.1.0, early. The core library works: model, memory index, access filter, erase and export. Hybrid search works when you supply an embedder and a vector store. The D1 adapter, the Worker API, the CLI and the MCP server work. The default Worker has no real authentication. See the HTTP API section.
 
 ## Install
 
@@ -49,6 +49,7 @@ const page = await search.search(me, { query: "budget", kinds: ["document"], lim
 - **Items.** An item has `id`, `kind` (`document`, `sheet`, `slide`, `file`, `comment`), `title`, `text`, `owner`, a `resource` reference and `updatedAt`.
 - **Query.** Words are ANDed. The last word also matches as a prefix. Case and accents do not matter. Filters: kinds, owner, resource, time range.
 - **Ranking.** BM25-shaped, with no corpus statistics. Title words count three times.
+- **Hybrid search (optional).** Pass `vectors: { embedder, store }` to `createSearch`. Word hits and vector hits are both filtered by access, then fused with reciprocal rank fusion. The embedder is a port that calls a model you host. A request can set `mode: "lexical"` to skip vectors.
 - **Snippets.** A text window with highlight offsets. No HTML is produced.
 - **Pagination.** A sealed cursor (AES-GCM, key from `cursorSecret`). Callers cannot read it. It works only for the query and caller that made it. A missing or short secret throws.
 - **Access.** Inject an `AccessPolicy`. The default lets a principal read only what its subject owns. The service checks the policy before it returns any hit, snippet or cursor. Only an answer of exactly `true` allows. A malformed answer throws.
@@ -56,7 +57,7 @@ const page = await search.search(me, { query: "budget", kinds: ["document"], lim
 - **Principals.** Every call takes a principal with a required `kind`. Agent principals act for a subject.
 - **Privacy.** `eraseOwner` and `remove` delete data. `exportOwner` returns everything indexed for one owner. Logs hold counts only.
 - **D1.** `import { D1Index } from "agentic-search/d1"`. Run `D1Index.migrate(env.DB)` once, then pass `new D1Index(env.DB)` as `store`. Create the database with an EU location hint if you need EU residency.
-- **Testing your own store.** `agentic-search/testing` exports `runIndexContract` for adapters.
+- **Testing your own store.** `agentic-search/testing` exports `runIndexContract` and `runVectorContract` for adapters.
 
 ## HTTP API
 
@@ -80,6 +81,7 @@ Errors: 400 bad input, 401 no principal, 403 not allowed, 413 and 415 bad body, 
 - The memory index scans every item per query. Use it for tests and small sets.
 - One search call scans at most 1000 store hits. When hidden items fill that window, the page can be short or empty and still carries `nextCursor`. Keep paging until it ends. A cursor on an empty page shows that the scan window held more matches, some of them maybe hidden from the caller. Treat it as a known signal until stores can filter by access.
 - The D1 adapter reads every posting in the range of the last query term. A very short last term is slow on a large index. An item may hold up to 500,000 characters, so keep an eye on D1 row and statement size limits.
+- There is no D1 vector store yet. Hybrid search on D1 needs your own `VectorStore`, which must pass `runVectorContract`.
 - Ranking uses no corpus statistics (no document frequency, no average length), so hidden items never change the order a caller sees. The price is less weight for rare words.
 - The default Worker has no real authentication. See HTTP API.
 
