@@ -123,6 +123,12 @@ test("agentic-search-mcp answers help and version under its own name, with or wi
     const r = run(argv);
     expect([argv, r.status, r.stderr]).toEqual([argv, 0, ""]);
     expect(r.stdout.split("\n")[0]).toBe(`agentic-search-mcp ${VERSION}`);
-    expect(r.stdout).toContain("Usage: agentic-search-mcp <command> [flags]");
+    expect(r.stdout).toContain("Usage: agentic-search-mcp [mcp] [--as <id>]");
+    expect(r.stdout).not.toContain("<command>");
   }
+});
+
+test("agentic-search-mcp refuses a stray word instead of starting the server", () => {
+  const r = spawnSync(process.execPath, ["dist-test/mcp-bin.js", "extra", "--as", "u1", "--kind", "human", "--data", join(tmpdir(), "as-stray")], { encoding: "utf8", timeout: 20_000 });
+  expect([r.status, r.stderr]).toEqual([2, expect.stringContaining('mcp takes no argument, got "extra"')]);
 });

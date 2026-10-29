@@ -5,7 +5,7 @@
 Patch. No change to the SDK, the HTTP API, or the MCP tools.
 
 - `agentic-search-mcp mcp --version` prints the version and exits 0. Before, the `mcp` word made the flag an unknown flag, and the command exited 2.
-- `agentic-search-mcp --help` and `agentic-search-mcp mcp --help` print the usage under `agentic-search-mcp`, not `agentic-search`.
+- `agentic-search-mcp --help` and `agentic-search-mcp mcp --help` print the bin's own usage, under `agentic-search-mcp`. It lists only the flags the bin reads. Before, they printed the CLI usage under `agentic-search`.
 
 ## 0.6.0
 
