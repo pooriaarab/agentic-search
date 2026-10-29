@@ -1,1 +1,10 @@
 export { VERSION } from "./version.js";
+export { createSearch, noopLogger } from "./core/service.js";
+export type { SearchService, SearchServiceOptions } from "./core/service.js";
+export { MemoryIndex } from "./core/memory-index.js";
+export { ownerPolicy } from "./core/access.js";
+export { ForbiddenError, ValidationError } from "./core/errors.js";
+export { parseItem, parsePrincipal, subjectOf, LIMITS } from "./core/validate.js";
+export { tokenize, queryTerms, normalizeToken } from "./core/text.js";
+export { ITEM_KINDS, PRINCIPAL_KINDS } from "./core/types.js";
+export type * from "./core/types.js";
