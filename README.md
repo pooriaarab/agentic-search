@@ -87,7 +87,7 @@ The principal is required, and there is no default kind. The CLI and MCP keep a 
 | `parseItem(input)`, `parsePrincipal(input)` | Check input and return a typed item or principal. They throw `ValidationError`. |
 | `LIMITS` | The size limits that the checks use. |
 | `ValidationError` | Thrown for bad input. |
-| `ForbiddenError` | Thrown when the access policy denies a write, or an erase, export or reindex for an owner. |
+| `ForbiddenError` | Thrown when the access policy denies an index or reindex write, or an erase or export for an owner. `remove` returns `removed: false` instead. |
 | `ITEM_KINDS`, `PRINCIPAL_KINDS` | The allowed item kinds and principal kinds. |
 | `tokenize(text)`, `queryTerms(query)` | `tokenize` returns each term with its start and end offsets. `queryTerms` returns the unique terms of a query. |
 
@@ -96,7 +96,7 @@ The package also exports types for each shape, such as `IndexedItem`, `Principal
 Subpath exports:
 
 - `agentic-search/d1`: `D1Index` and `D1_SCHEMA`. Types: `D1Like`, `D1StatementLike` and `D1ResultLike`.
-- `agentic-search/worker`: `createWorker`, the Worker factory. The default export is the unsafe trial Worker. Types: `AuthVerifier`, `WorkerEnv` and `WorkerOptions`.
+- `agentic-search/worker`: `createWorker`, the Worker factory. The default export is the unsafe trial Worker. It needs `SEARCH_UNSAFE_NO_AUTH=1`, or it answers 401 to every call. Types: `AuthVerifier`, `WorkerEnv` and `WorkerOptions`.
 - `agentic-search/testing`: `runIndexContract`, `runVectorContract`, `item` and the `ContractHarness` type (see How it works).
 
 ## HTTP API
