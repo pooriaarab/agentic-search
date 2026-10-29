@@ -7,6 +7,7 @@ export default defineConfig({
     "src/mcp.ts",
     "src/mcp-bin.ts",
     "src/worker.ts",
+    "src/client.ts",
     "src/adapters/d1.ts",
     "src/testing/index-contract.ts",
   ],
