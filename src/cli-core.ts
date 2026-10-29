@@ -107,7 +107,11 @@ function principalOf(p: Parsed): Principal {
   const id = one(p, "as", "AGENTIC_SEARCH_AS");
   const kind = one(p, "kind", "AGENTIC_SEARCH_KIND");
   if (id === undefined || kind === undefined) {
-    throw new ValidationError("a principal is required: pass --as and --kind");
+    const missing = [
+      ...(id === undefined ? ["--as or AGENTIC_SEARCH_AS"] : []),
+      ...(kind === undefined ? ["--kind or AGENTIC_SEARCH_KIND"] : []),
+    ];
+    throw new ValidationError(`a principal is required. Missing: ${missing.join(", ")}`);
   }
   const actingFor = one(p, "acting-for", "AGENTIC_SEARCH_ACTING_FOR");
   return parsePrincipal({ id, kind, ...(actingFor === undefined ? {} : { actingFor }) });
@@ -190,6 +194,10 @@ export async function runCli(argv: string[], io: CliIo = defaultIo): Promise<num
     return 0;
   }
   if (first === "--version" || first === "-V") {
+    io.out(VERSION);
+    return 0;
+  }
+  if (first === "mcp" && (argv[1] === "--version" || argv[1] === "-V")) {
     io.out(VERSION);
     return 0;
   }

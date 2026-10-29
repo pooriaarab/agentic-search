@@ -71,6 +71,29 @@ test("the built bin files run: cli prints the version, mcp-bin starts and needs 
   const binShortVersion = run("dist-test/mcp-bin.js", ["-V"]);
   expect(binShortVersion.status).toBe(0);
   expect(binShortVersion.stdout.trim()).toBe(VERSION);
+  for (const flag of ["--version", "-V"]) {
+    const mcpVersion = run("dist-test/cli.js", ["mcp", flag]);
+    expect(mcpVersion.status).toBe(0);
+    expect(mcpVersion.stdout.trim()).toBe(VERSION);
+  }
+  for (const flag of ["--help", "-h"]) {
+    const mcpHelp = run("dist-test/cli.js", ["mcp", flag]);
+    expect(mcpHelp.status).toBe(0);
+    expect(mcpHelp.stdout).toContain("Usage:");
+  }
+  const noEnv = spawnSync(process.execPath, ["dist-test/mcp-bin.js", "--data", join(dir, "x")], {
+    encoding: "utf8",
+    timeout: 20_000,
+    env: { ...process.env, AGENTIC_SEARCH_AS: "", AGENTIC_SEARCH_KIND: "" },
+  });
+  expect(noEnv.status).not.toBe(0);
+  const bare = { ...process.env };
+  delete bare.AGENTIC_SEARCH_AS;
+  delete bare.AGENTIC_SEARCH_KIND;
+  const missing = spawnSync(process.execPath, ["dist-test/mcp-bin.js", "--data", join(dir, "x")], { encoding: "utf8", timeout: 20_000, env: bare });
+  expect(missing.status).not.toBe(0);
+  expect(missing.stderr).toContain("AGENTIC_SEARCH_AS");
+  expect(missing.stderr).toContain("AGENTIC_SEARCH_KIND");
   const noPrincipal = run("dist-test/mcp-bin.js", ["--data", join(dir, "x")]);
   expect(noPrincipal.status).toBe(2);
   expect(noPrincipal.stderr).toContain("principal");
