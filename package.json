@@ -70,7 +70,7 @@
     "deploy:demo": "WRANGLER_SEND_METRICS=false npx wrangler deploy --config wrangler.demo.jsonc"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.12.0",
+    "@modelcontextprotocol/sdk": "^1.23.0",
     "agentic-identity": "^0.7.0",
     "zod": "^4.6.7"
   },

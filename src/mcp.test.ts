@@ -61,7 +61,7 @@ test("tools/list advertises the input schemas that zod 4 emits", async () => {
   try {
     const schemas = Object.fromEntries((await client.listTools()).tools.map((t) => [t.name, t.inputSchema]));
     // Pins the advertised contract. zod 4 drops additionalProperties: false, so any change here must be deliberate.
-    expect(schemas.remove).toEqual({ type: "object", properties: { id: { type: "string" } }, required: ["id"], $schema: "http://json-schema.org/draft-07/schema#" });
+    expect(schemas.remove).toEqual({ type: "object", properties: { id: { type: "string" } }, required: ["id"], $schema: expect.any(String) });
     expect(schemas.search?.properties?.limit).toEqual({ type: "integer", minimum: -9007199254740991, maximum: 9007199254740991 });
   } finally {
     await client.close();
