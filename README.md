@@ -96,7 +96,7 @@ The package also exports types for each shape, such as `IndexedItem`, `Principal
 Subpath exports:
 
 - `agentic-search/d1`: `D1Index` and `D1_SCHEMA`. Types: `D1Like`, `D1StatementLike` and `D1ResultLike`.
-- `agentic-search/worker`: `createWorker`, the Worker factory. The default export is the unsafe trial Worker. It needs `SEARCH_UNSAFE_NO_AUTH=1`, or it answers 401 to every call. Types: `AuthVerifier`, `WorkerEnv` and `WorkerOptions`.
+- `agentic-search/worker`: `createWorker`, the Worker factory. The default export is the unsafe trial Worker. It needs `SEARCH_UNSAFE_NO_AUTH=1`. Without it, every `/api/v1` call except health answers 401. Types: `AuthVerifier`, `WorkerEnv` and `WorkerOptions`.
 - `agentic-search/testing`: `runIndexContract`, `runVectorContract`, `item` and the `ContractHarness` type (see How it works).
 
 ## HTTP API
