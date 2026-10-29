@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "agentic-search": {
+      "command": "npx",
+      "args": ["-y", "agentic-search", "mcp"]
+    }
+  }
+}

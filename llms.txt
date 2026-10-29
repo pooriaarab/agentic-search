@@ -1,0 +1,11 @@
+# agentic-search
+
+Search for documents, sheets, slides, files and comments, filtered by what the caller may read.
+
+- CLI: npx agentic-search --help
+- MCP: npx agentic-search mcp
+
+## Docs
+
+- README: https://github.com/pooriaarab/agentic-search
+- License: MIT

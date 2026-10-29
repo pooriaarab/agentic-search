@@ -1,0 +1,8 @@
+{
+  "name": "agentic-search",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-01-01",
+  "vars": {
+    "SEARCH_NAME": "agentic-search"
+  }
+}
