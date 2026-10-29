@@ -27,6 +27,18 @@ async function setup(access?: AccessPolicy, extra: { maxScan?: number; logs?: un
 const secret = (id: string, owner: string, text = "confidential merger plan"): IndexedItem =>
   item(id, { owner, title: `Secret ${id}`, text });
 
+/**
+ * A sealed cursor is a random 12-byte IV, then AES-GCM ciphertext. A plain payload would show
+ * its keys ("s", "i", "q") and parse as JSON after the IV. No hidden item id may appear either.
+ */
+function expectSealed(cursor: string, hiddenIds: string[]): void {
+  const bytes = Buffer.from(cursor, "base64url");
+  const text = bytes.toString("latin1");
+  expect(text).not.toMatch(/"[siq]":/);
+  expect(() => JSON.parse(bytes.subarray(12).toString("utf8"))).toThrow();
+  for (const id of hiddenIds) expect(text).not.toContain(id);
+}
+
 describe("access filter", () => {
   test("a caller sees only items the policy allows, with no leak in hits, snippets or cursor", async () => {
     const { svc } = await setup();
@@ -74,13 +86,28 @@ describe("access filter", () => {
   });
 
   test("a cursor never names a hidden item", async () => {
+    // Long, distinctive ids: random ciphertext cannot contain them by chance.
+    const hidden = Array.from({ length: 10 }, (_, i) => `hidden-bob-item-${i}`);
     const { svc } = await setup();
-    await svc.index(bob, Array.from({ length: 10 }, (_, i) => secret(`b${i}`, "bob", "term term term")));
-    await svc.index(alice, Array.from({ length: 4 }, (_, i) => secret(`a${i}`, "alice", "term")));
+    await svc.index(bob, hidden.map((id) => secret(id, "bob", "term term term")));
+    await svc.index(alice, Array.from({ length: 4 }, (_, i) => secret(`visible-alice-item-${i}`, "alice", "term")));
     const page = await svc.search(alice, { query: "term", limit: 2 });
-    const raw = Buffer.from(page.nextCursor!, "base64url").toString("latin1");
-    // Sealed: neither ids nor the score are readable in the cursor.
-    expect(raw).not.toMatch(/"i"|"s"|b\d|a\d/);
+    expect(page.nextCursor).toBeDefined();
+    expectSealed(page.nextCursor!, hidden);
+    const next = await svc.search(alice, { query: "term", limit: 2, cursor: page.nextCursor });
+    expect(next.hits.map((h) => h.id)).toEqual(["visible-alice-item-2", "visible-alice-item-3"]);
+  });
+
+  test("a scan-cap continuation cursor never names a hidden item", async () => {
+    // With a small scan budget the cursor carries the last scanned row, which is a hidden item.
+    const hidden = Array.from({ length: 60 }, (_, i) => `hidden-bob-item-${String(i).padStart(2, "0")}`);
+    const { svc } = await setup(undefined, { maxScan: 20 });
+    await svc.index(bob, hidden.map((id) => secret(id, "bob", "term term term")));
+    await svc.index(alice, [secret("visible-alice-item-0", "alice", "term")]);
+    const first = await svc.search(alice, { query: "term", limit: 5 });
+    expect(first.hits).toEqual([]);
+    expect(first.nextCursor).toBeDefined();
+    expectSealed(first.nextCursor!, hidden);
   });
 
   test("the scan cap bounds the work, then continues so no match is lost", async () => {
