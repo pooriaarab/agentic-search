@@ -60,7 +60,7 @@ const page = await search.search(me, { query: "budget", kinds: ["document"], lim
 ## Limits
 
 - The memory index scans every item per query. Use it for tests and small sets.
-- One search call scans at most 1000 store hits. When hidden items fill that window, the page can be short or empty and still carries `nextCursor`. Keep paging until it ends.
+- One search call scans at most 1000 store hits. When hidden items fill that window, the page can be short or empty and still carries `nextCursor`. Keep paging until it ends. A cursor on an empty page shows that the scan window held more matches, some of them maybe hidden from the caller. Treat it as a known signal until stores can filter by access.
 - BM25 statistics span the whole index, so ranking can depend on hidden items in a small way. Scores are never returned, and cursors are sealed.
 - No D1 adapter, HTTP API, CLI search commands or MCP tools yet.
 

@@ -54,6 +54,7 @@ export async function createSearch(opts: SearchServiceOptions): Promise<SearchSe
   const access = opts.access ?? ownerPolicy;
   const log = opts.logger ?? noopLogger;
   const maxScan = opts.maxScan ?? 1_000;
+  if (!Number.isInteger(maxScan) || maxScan < 1) throw new ValidationError("maxScan must be a positive integer");
   const now = opts.now ?? Date.now;
 
   /** Fail closed: only a strict `true` per ref allows. A malformed answer throws. */
@@ -125,7 +126,7 @@ export async function createSearch(opts: SearchServiceOptions): Promise<SearchSe
       if (terms.length > LIMITS.terms) throw new ValidationError(`query has more than ${LIMITS.terms} words`);
       const filter = parseFilter(request as unknown as Record<string, unknown>);
       const limit = parseLimit(request.limit);
-      const digest = queryDigest({ terms, filter, caller: principal.id, actingFor: principal.actingFor ?? null });
+      const digest = await queryDigest({ terms, filter, caller: principal.id, actingFor: principal.actingFor ?? null });
       let after: CursorPosition | undefined =
         request.cursor === undefined ? undefined : await cursors.decode(request.cursor, digest);
 

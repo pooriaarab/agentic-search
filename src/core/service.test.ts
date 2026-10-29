@@ -50,6 +50,14 @@ describe("access filter", () => {
     expect(withHidden).toEqual(empty);
   });
 
+  test("refuses a bad maxScan instead of returning empty pages", async () => {
+    for (const maxScan of [0, -1, Number.NaN, 1.5]) {
+      await expect(createSearch({ store: new MemoryIndex(), cursorSecret: SECRET, maxScan })).rejects.toBeInstanceOf(
+        ValidationError,
+      );
+    }
+  });
+
   test("pages fill with allowed items even when hidden items rank between them", async () => {
     const { svc } = await setup();
     // Bob's items rank higher (more matches). Alice's rank below them.
@@ -270,7 +278,7 @@ describe("queries and cursors", () => {
     await expect(svc.search(alice, { query: "other", cursor: page.nextCursor })).rejects.toBeInstanceOf(ValidationError);
     // A cursor sealed with another secret, or edited, or made for another caller, is refused.
     const other = await createCursorCodec("ffffffffffffffffffffffffffffffff");
-    const digest = queryDigest({ terms: ["term"], filter: {}, caller: "alice", actingFor: null });
+    const digest = await queryDigest({ terms: ["term"], filter: {}, caller: "alice", actingFor: null });
     const foreign = await other.encode({ score: 1, id: "a0" }, digest);
     await expect(svc.search(alice, { query: "term", cursor: foreign })).rejects.toBeInstanceOf(ValidationError);
     const edited = page.nextCursor!.slice(0, -2) + (page.nextCursor!.endsWith("AA") ? "BB" : "AA");

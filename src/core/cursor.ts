@@ -7,15 +7,10 @@ export interface CursorPosition {
 
 export const MIN_SECRET_BYTES = 32;
 
-/** Short checksum that ties a cursor to the query and caller that made it. */
-export function queryDigest(parts: unknown): string {
-  const s = JSON.stringify(parts);
-  let h = 0x811c9dc5;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 0x01000193) >>> 0;
-  }
-  return h.toString(36);
+/** SHA-256 digest that ties a cursor to the query and caller that made it. */
+export async function queryDigest(parts: unknown): Promise<string> {
+  const data = new TextEncoder().encode(JSON.stringify(parts));
+  return toB64Url(new Uint8Array(await crypto.subtle.digest("SHA-256", data)));
 }
 
 function toB64Url(bytes: Uint8Array): string {
