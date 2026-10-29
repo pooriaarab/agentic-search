@@ -96,14 +96,16 @@ The package also exports types for each shape, such as `IndexedItem`, `Principal
 Subpath exports:
 
 - `agentic-search/d1`: `D1Index` and `D1_SCHEMA`. Types: `D1Like`, `D1StatementLike` and `D1ResultLike`.
-- `agentic-search/worker`: `createWorker`, the Worker factory. Pass `auth` to verify bearer tokens with `agentic-identity`. The default export is a dev-mode Worker. It needs `SEARCH_UNSAFE_NO_AUTH=1`. Without it, every `/api/v1` call except health answers 401. Types: `AuthVerifier`, `AuthSource`, `WorkerEnv` and `WorkerOptions`.
+- `agentic-search/worker`: `createWorker`, the Worker factory. Pass `auth` to verify bearer tokens with `agentic-identity`. The default export verifies `agentic-identity` credentials from the `DB` binding. It needs `SEARCH_REGION` (`eu` or `us`; `unknown` only for local trials). Types: `AuthVerifier`, `AuthSource`, `WorkerEnv` and `WorkerOptions`.
 - `agentic-search/testing`: `runIndexContract`, `runVectorContract`, `item` and the `ContractHarness` type (see How it works).
 
 ## HTTP API
 
 **Authentication.** Call `createWorker({ auth })` with an `Auth` from `agentic-identity` (or a function that builds one from `env`). The Worker checks the `Authorization: Bearer` token with `agentic-identity/http`. A missing, bad, expired or revoked token answers 401. The Worker needs the scope `search:read` for search and export, `search:write` for index and remove, and `search:admin` for erase by owner. A token without it answers 403 (`*:read` covers read only). Use `require: { kinds }` to refuse some kinds of token with 403. The principal comes from the verified token. For an agent, `actingFor` is the root of its chain. The Worker ignores every `x-principal-*` header in this mode. Give `auth` or `verifier`, not both.
 
-**Warning:** the default Worker export has no real authentication. It refuses every `/api/v1` call (except health) unless you set `SEARCH_UNSAFE_NO_AUTH=1`. With that flag it trusts the headers `x-principal-id`, `x-principal-kind` and `x-principal-acting-for`. Use it for local trials only. It also needs `SEARCH_ENV` set to exactly `development` or `test`. Unset, `production` or any other value refuses, so a production deploy fails closed. For real use, call `createWorker({ auth })`. You can also pass your own `verifier`: it returns the principal, or `null` for no access. A throw also means no access.
+**Default Worker export.** It reads credentials and principals from the identity tables in the `DB` binding (`agentic-identity` `createStoreAuth`). Set `SEARCH_REGION` to `eu` or `us`. A missing token answers 401. A token without the route scope answers 403. A missing `DB` or `SEARCH_REGION` answers 500, so it fails closed.
+
+**Warning:** `SEARCH_UNSAFE_NO_AUTH=1` switches the default export to a dev mode with no authentication. It trusts the headers `x-principal-id`, `x-principal-kind` and `x-principal-acting-for`. Use it for local trials only. It also needs `SEARCH_ENV` set to exactly `development` or `test`. Unset, `production` or any other value refuses, so a production deploy fails closed. You can also pass your own `verifier` to `createWorker`: it returns the principal, or `null` for no access. A throw also means no access.
 
 Bindings: `DB` (D1, run `migrations/0001_init.sql`), `SEARCH_CURSOR_SECRET` (32 bytes or more).
 
@@ -148,7 +150,7 @@ A demo Worker runs at <https://agentic-search-demo.hello-fd1.workers.dev>.
 curl https://agentic-search-demo.hello-fd1.workers.dev/api/v1/health
 ```
 
-The demo has no database, no secrets and no authentication. It does not set `SEARCH_UNSAFE_NO_AUTH`, so health answers 200 and every other `/api/v1` call answers 401. It shows that the Worker is up. It holds no data.
+The demo has no database, no secrets and no authentication. It does not set `SEARCH_UNSAFE_NO_AUTH`, so health answers 200 and every other `/api/v1` call answers 500, because the identity store is missing. It shows that the Worker is up. It holds no data.
 
 To redeploy, log in to Cloudflare with your own account and run:
 
@@ -167,7 +169,7 @@ The script runs `wrangler deploy` with `wrangler.demo.jsonc` and turns wrangler 
 - Ranking uses no corpus statistics (no document frequency, no average length), so hidden items never change the order a caller sees. The price is less weight for rare words.
 - The CLI and MCP index is one JSON file for one machine. It has no cross-machine sharing.
 - The vector port has no filter, so a store with very many hidden items can make hybrid search slower. No vector adapter ships besides the memory one.
-- The default Worker has no real authentication. See HTTP API.
+- The default Worker needs the identity tables in its `DB` binding. Issue credentials with `agentic-identity`. See HTTP API.
 
 ## Develop
 

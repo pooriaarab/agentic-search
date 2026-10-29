@@ -1,5 +1,6 @@
 import { requirePrincipal, type RequirePrincipalOptions } from "agentic-identity/http";
-import type { Auth, PrincipalContext } from "agentic-identity";
+import { createStoreAuth, parseRegion, type Auth, type PrincipalContext } from "agentic-identity";
+import { D1_SCHEMA, createD1Store } from "agentic-identity/cloudflare";
 import { createSearch, type SearchService } from "./core/service.js";
 import { ForbiddenError, ValidationError } from "./core/errors.js";
 import { D1Index, type D1Like } from "./adapters/d1.js";
@@ -19,6 +20,8 @@ export interface WorkerEnv {
   DB?: D1Like;
   /** Seals cursors. At least 32 bytes. */
   SEARCH_CURSOR_SECRET?: string;
+  /** "eu" or "us" ("unknown" only for local development). The region of the identity store in `DB`. */
+  SEARCH_REGION?: string;
   /** Set to "1" to trust principal headers. For local trials only: it has no authentication. */
   SEARCH_UNSAFE_NO_AUTH?: string;
   /** The header-trust dev mode works only when this is exactly "development" or "test". Unset or any other value refuses. */
@@ -249,4 +252,34 @@ const unsafeHeaderVerifier: AuthVerifier = {
   },
 };
 
-export default createWorker({ verifier: unsafeHeaderVerifier });
+const schemas = new WeakMap<object, Promise<unknown>>();
+
+/** Credentials and principals live in the identity tables of the `DB` binding. A missing binding or region throws, so the call fails closed. */
+async function storeAuthFor(env: WorkerEnv): Promise<Auth> {
+  const db = env.DB;
+  if (db === undefined) throw new Error("the DB binding is missing");
+  const region = parseRegion(env.SEARCH_REGION);
+  let ready = schemas.get(db);
+  if (ready === undefined) {
+    const made: Promise<unknown> = db.batch([db.prepare(D1_SCHEMA)]).catch((error: unknown) => {
+      schemas.delete(db);
+      throw error;
+    });
+    schemas.set(db, made);
+    ready = made;
+  }
+  await ready;
+  return createStoreAuth(createD1Store(db as never, { region }));
+}
+
+const authed = createWorker({ auth: storeAuthFor });
+const dev = createWorker({ verifier: unsafeHeaderVerifier });
+
+/**
+ * The default export verifies identity credentials from the store in `DB`. Setting
+ * `SEARCH_UNSAFE_NO_AUTH=1` switches to the header dev mode, which has no authentication.
+ */
+export default {
+  fetch: (request: Request, env: WorkerEnv = {}): Promise<Response> =>
+    (env.SEARCH_UNSAFE_NO_AUTH === "1" ? dev : authed).fetch(request, env),
+};
