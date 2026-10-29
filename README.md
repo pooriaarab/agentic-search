@@ -79,7 +79,7 @@ Errors: 400 bad input, 401 no principal, 403 not allowed, 413 and 415 bad body, 
 ## Limits
 
 - The memory index scans every item per query. Use it for tests and small sets.
-- One search call scans at most 1000 store hits. When hidden items fill that window, the page can be short or empty and still carries `nextCursor`. Keep paging until it ends. A cursor on an empty page shows that the scan window held more matches, some of them maybe hidden from the caller. Treat it as a known signal until stores can filter by access.
+- In lexical mode, one search call scans at most 1000 store hits. When hidden items fill that window, the page can be short or empty and still carries `nextCursor`. Keep paging until it ends. A cursor on an empty page shows that the scan window held more matches, some of them maybe hidden from the caller. Treat it as a known signal until stores can filter by access. Hybrid search does not use this window. It returns at most `2 × depth` results per query (default `depth` is 100 per side).
 - The D1 adapter reads every posting in the range of the last query term. A very short last term is slow on a large index. An item may hold up to 500,000 characters, so keep an eye on D1 row and statement size limits.
 - There is no D1 vector store yet. Hybrid search on D1 needs your own `VectorStore`, which must pass `runVectorContract`.
 - Ranking uses no corpus statistics (no document frequency, no average length), so hidden items never change the order a caller sees. The price is less weight for rare words.

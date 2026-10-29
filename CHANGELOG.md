@@ -46,5 +46,6 @@ First release.
 - There is no D1 vector store yet. Hybrid search on D1 needs your own
   `VectorStore`, which must pass `runVectorContract`. Erase must remove the
   vectors as well as the words.
-- A search scans at most 1000 store hits. Hidden items can make a page short
+- In lexical mode, a search scans at most 1000 store hits. Hidden items can make a page short
   or empty while `nextCursor` is still set.
+- Hybrid search returns at most `2 × depth` results per query (default `depth` is 100 per side). A cursor past that limit is rejected.
