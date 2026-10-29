@@ -1,29 +1,13 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { spawnSync } from "node:child_process";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { build } from "esbuild";
-import { afterAll, beforeAll, expect, test } from "vitest";
+import { afterAll, expect, test } from "vitest";
 import { VERSION } from "./version.js";
 
-let dir: string;
-let entry: string;
-
-beforeAll(async () => {
-  dir = mkdtempSync(join(tmpdir(), "as-mcp-"));
-  entry = join(dir, "cli.mjs");
-  await build({
-    entryPoints: ["src/cli.ts"],
-    outfile: entry,
-    bundle: true,
-    platform: "node",
-    format: "esm",
-    banner: { js: "import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);" },
-    logLevel: "silent",
-  });
-  writeFileSync(join(dir, "package.json"), '{"type":"module"}');
-});
+const dir = mkdtempSync(join(tmpdir(), "as-mcp-"));
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
 async function connect(args: string[]): Promise<Client> {
@@ -31,7 +15,7 @@ async function connect(args: string[]): Promise<Client> {
   await client.connect(
     new StdioClientTransport({
       command: process.execPath,
-      args: [entry, "mcp", "--data", join(dir, "data"), ...args],
+      args: ["dist-test/cli.js", "mcp", "--data", join(dir, "data"), ...args],
       stderr: "pipe",
     }),
   );
@@ -74,4 +58,15 @@ test("the real MCP server over stdio indexes, searches, exports and erases", asy
 
 test("the server refuses to start without a principal kind", async () => {
   await expect(connect(["--as", "u1"])).rejects.toThrow();
+});
+
+test("the built bin files run: cli prints the version, mcp-bin starts and needs a principal", async () => {
+  const run = (file: string, args: string[]) => spawnSync(process.execPath, [file, ...args], { encoding: "utf8", timeout: 20_000 });
+  const v = run("dist-test/cli.js", ["--version"]);
+  expect(v.stdout.trim()).toBe(VERSION);
+  const noPrincipal = run("dist-test/mcp-bin.js", ["--data", join(dir, "x")]);
+  expect(noPrincipal.status).toBe(2);
+  expect(noPrincipal.stderr).toContain("principal");
+  const bad = run("dist-test/cli.js", ["erase", "u1", "--data", join(dir, "x"), "--as", "u2", "--kind", "human"]);
+  expect(bad.status).toBe(3);
 });

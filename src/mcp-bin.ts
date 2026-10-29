@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { runCli } from "./cli.js";
+import { runCli } from "./cli-core.js";
 
 runCli(["mcp", ...process.argv.slice(2)]).then(
   (code) => {

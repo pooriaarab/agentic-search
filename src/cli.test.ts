@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, expect, test } from "vitest";
-import { runCli } from "./cli.js";
+import { runCli } from "./cli-core.js";
 import { VERSION } from "./version.js";
 
 function capture() {

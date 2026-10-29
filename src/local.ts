@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { link, mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { link, mkdir, open, readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { MemoryIndex } from "./core/memory-index.js";
 import { createSearch, type SearchService } from "./core/service.js";
@@ -10,8 +10,9 @@ import { parseItem } from "./core/validate.js";
  * Local-file index store for the CLI and the MCP server. It keeps every item
  * in one JSON file and searches through the memory index. Use it for one
  * writer and small data sets. A corrupt file throws: it is never read as empty.
- * Writes in one process run one at a time per file. Each call reads the file
- * again, so a long scan can see a change between pages.
+ * Writes run one at a time per file, across processes too (a lock file next to
+ * the index). Each call reads the file again, so a long scan can see a change
+ * between pages.
  */
 const queues = new Map<string, Promise<unknown>>();
 
@@ -20,9 +21,34 @@ export class FileIndex implements IndexStore {
 
   /** Run a read-change-write step after every earlier step on the same file. */
   private locked<T>(step: () => Promise<T>): Promise<T> {
-    const run = (queues.get(this.path) ?? Promise.resolve()).then(step, step);
+    const guarded = async () => {
+      const release = await this.acquire();
+      try {
+        return await step();
+      } finally {
+        await release();
+      }
+    };
+    const run = (queues.get(this.path) ?? Promise.resolve()).then(guarded, guarded);
     queues.set(this.path, run.catch(() => undefined));
     return run;
+  }
+
+  /** Take the lock file. A lock older than 30 seconds belongs to a dead process and is replaced. */
+  private async acquire(): Promise<() => Promise<void>> {
+    const lock = `${this.path}.lock`;
+    for (let tries = 0; tries < 600; tries++) {
+      try {
+        await (await open(lock, "wx", 0o600)).close();
+        return () => unlink(lock).catch(() => undefined);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+        const age = await stat(lock).then((s) => Date.now() - s.mtimeMs, () => 0);
+        if (age > 30_000) await unlink(lock).catch(() => undefined);
+        else await new Promise((r) => setTimeout(r, 25));
+      }
+    }
+    throw new Error("the index file is locked");
   }
 
   private async read(): Promise<IndexedItem[]> {
@@ -45,8 +71,14 @@ export class FileIndex implements IndexStore {
 
   private async write(items: IndexedItem[]): Promise<void> {
     const tmp = `${this.path}.${randomBytes(6).toString("hex")}.tmp`;
-    await writeFile(tmp, JSON.stringify(items), { mode: 0o600 });
-    await rename(tmp, this.path);
+    try {
+      await writeFile(tmp, JSON.stringify(items), { mode: 0o600 });
+      await rename(tmp, this.path);
+    } catch (error) {
+      // Leave no copy of the data behind after a failed write.
+      await unlink(tmp).catch(() => undefined);
+      throw error;
+    }
   }
 
   private async memory(): Promise<MemoryIndex> {
