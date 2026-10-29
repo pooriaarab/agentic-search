@@ -14,8 +14,8 @@ First release.
   an injectable `AccessPolicy`. Access is checked before any hit, snippet or
   cursor is returned.
 - Items with the kinds `document`, `sheet`, `slide`, `file` and `comment`.
-- Query with ANDed words, a prefix match on the last word, BM25 ranking and
-  title boost, snippets with highlight offsets, and filters for kind, owner,
+- Query with ANDed words, a prefix match on the last word, BM25-shaped ranking
+  without corpus statistics, and title boost, snippets with highlight offsets, and filters for kind, owner,
   resource and time range.
 - Sealed pagination cursors (AES-GCM, key from `cursorSecret`).
 - Erase and export by owner (`eraseOwner`, `exportOwner`) and removal by item

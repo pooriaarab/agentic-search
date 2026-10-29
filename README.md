@@ -48,7 +48,7 @@ const page = await search.search(me, { query: "budget", kinds: ["document"], lim
 
 - **Items.** An item has `id`, `kind` (`document`, `sheet`, `slide`, `file`, `comment`), `title`, `text`, `owner`, a `resource` reference and `updatedAt`.
 - **Query.** Words are ANDed. The last word also matches as a prefix. Case and accents do not matter. Filters: kinds, owner, resource, time range.
-- **Ranking.** BM25. Title words count three times.
+- **Ranking.** BM25-shaped, with no corpus statistics. Title words count three times.
 - **Snippets.** A text window with highlight offsets. No HTML is produced.
 - **Pagination.** A sealed cursor (AES-GCM, key from `cursorSecret`). Callers cannot read it. It works only for the query and caller that made it. A missing or short secret throws.
 - **Access.** Inject an `AccessPolicy`. The default lets a principal read only what its subject owns. The service checks the policy before it returns any hit, snippet or cursor. Only an answer of exactly `true` allows. A malformed answer throws.
