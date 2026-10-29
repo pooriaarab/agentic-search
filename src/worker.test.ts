@@ -2,7 +2,8 @@ import { readFileSync } from "node:fs";
 import { build } from "esbuild";
 import { Miniflare } from "miniflare";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
-import { createMemoryAuth } from "agentic-identity";
+import { createMemoryAuth, issueCredential } from "agentic-identity";
+import { D1_SCHEMA as IDENTITY_SCHEMA, createD1Store } from "agentic-identity/cloudflare";
 import worker, { createWorker, type AuthVerifier } from "./worker.js";
 import { D1_SCHEMA, D1Index, type D1Like } from "./adapters/d1.js";
 import { VERSION } from "./version.js";
@@ -31,7 +32,7 @@ describe("worker without storage", () => {
     expect((await worker.fetch(new Request("http://x/api/v1/health"), {})).status).toBe(200);
   });
 
-  test("the default worker refuses every API call without the unsafe flag", async () => {
+  test("the default worker without a DB binding answers 500, never data", async () => {
     const res = await worker.fetch(
       new Request("http://x/api/v1/search", {
         method: "POST",
@@ -40,7 +41,7 @@ describe("worker without storage", () => {
       }),
       {},
     );
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(500);
   });
 
   test("bundles for a Worker runtime without Node built-ins", async () => {
@@ -54,6 +55,66 @@ describe("worker without storage", () => {
       logLevel: "silent",
     });
     expect(result.errors).toEqual([]);
+  });
+});
+
+describe("default worker with identity auth (miniflare)", () => {
+  let mf: Miniflare;
+  const tokens: Record<string, string> = {};
+  const call = async (path: string, init: Record<string, unknown> = {}) => {
+    const res = await mf.dispatchFetch(`http://x${path}`, init as never);
+    return res.status;
+  };
+  const search = (headers: Record<string, string>) =>
+    call("/api/v1/search", { method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify({ query: "a" }) });
+  const bearer = (who: string) => ({ authorization: `Bearer ${tokens[who]}` });
+
+  beforeAll(async () => {
+    const bundle = await build({
+      entryPoints: ["src/worker.ts"],
+      bundle: true,
+      write: false,
+      format: "esm",
+      platform: "neutral",
+      conditions: ["workerd", "worker", "browser"],
+      logLevel: "silent",
+    });
+    mf = new Miniflare({
+      modules: true,
+      script: bundle.outputFiles[0]!.text,
+      compatibilityDate: "2026-01-01",
+      d1Databases: { DB: "worker-identity" },
+      bindings: { SEARCH_CURSOR_SECRET: SECRET, SEARCH_REGION: "unknown" },
+    });
+    const db = (await mf.getD1Database("DB")) as unknown as D1Like;
+    await D1Index.migrate(db);
+    const store = createD1Store(db as never, { region: "unknown" });
+    await db.batch([(db as never as { prepare(s: string): never }).prepare(IDENTITY_SCHEMA)]);
+    await store.put("principals", "reader", { id: "reader", kind: "human", scopes: ["search:read"] });
+    await store.put("principals", "writer", { id: "writer", kind: "human", scopes: ["search:read", "search:write"] });
+    tokens.reader = await issueCredential(store, { principalId: "reader", kind: "api_key" });
+    tokens.writer = await issueCredential(store, { principalId: "writer", kind: "api_key" });
+  });
+  afterAll(async () => {
+    await mf.dispose();
+  });
+
+  test("401 without a token, with a bad token, and with only dev headers", async () => {
+    expect(await search({})).toBe(401);
+    expect(await search({ authorization: "Bearer nope" })).toBe(401);
+    expect(await search({ "x-principal-id": "reader", "x-principal-kind": "human" })).toBe(401);
+  });
+
+  test("403 when the token lacks the scope of the route", async () => {
+    const index = await call("/api/v1/items", { method: "POST", headers: { "content-type": "application/json", ...bearer("reader") }, body: JSON.stringify(doc("a", "reader", "x")) });
+    expect(index).toBe(403);
+  });
+
+  test("200 for a token with the scope, and health needs none", async () => {
+    expect(await search(bearer("reader"))).toBe(200);
+    const index = await call("/api/v1/items", { method: "POST", headers: { "content-type": "application/json", ...bearer("writer") }, body: JSON.stringify(doc("a", "writer", "x")) });
+    expect(index).toBe(200);
+    expect(await call("/health")).toBe(200);
   });
 });
 
@@ -410,7 +471,8 @@ describe("dev mode header trust", () => {
     expect((await call({ SEARCH_UNSAFE_NO_AUTH: "1", SEARCH_ENV: "development" })).status).toBe(500);
   });
   test("is off without the flag", async () => {
-    expect((await call({})).status).toBe(401);
+    // The default worker then wants identity auth, and no DB is bound, so it fails closed.
+    expect((await call({})).status).toBe(500);
   });
 });
 

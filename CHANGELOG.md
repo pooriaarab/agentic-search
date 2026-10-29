@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Breaking: the default Worker export verifies `agentic-identity` credentials from the `DB` binding (`createStoreAuth`). Set `SEARCH_REGION`. Before, it refused every API call unless the dev flag was set. A missing token is 401 and a token without the route scope is 403. `SEARCH_UNSAFE_NO_AUTH=1` with `SEARCH_ENV` stays as the explicit local dev opt-in.
+
 ## 0.4.0
 
 - Breaking: the Worker verifies bearer tokens with `agentic-identity/http`. New option `createWorker({ auth, require })` answers 401 for a missing or bad token. It checks the scope per route (`search:read`, `search:write`, `search:admin`) and the kinds and origins in `require`, and answers 403 when a token falls short. A broken auth builder is a 500 with a logged `auth_error`. The principal comes from the token, and `x-principal-*` headers are ignored. `verifier` still works, but you must give exactly one of `auth` or `verifier`.

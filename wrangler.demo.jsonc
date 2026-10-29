@@ -1,6 +1,6 @@
 {
   // Public demo. It has no database and no secrets, and it does not set
-  // SEARCH_UNSAFE_NO_AUTH, so every /api/v1 call except health answers 401.
+  // SEARCH_UNSAFE_NO_AUTH, so every /api/v1 call except health answers 500.
   "name": "agentic-search-demo",
   "main": "src/worker.ts",
   "compatibility_date": "2026-01-01",
