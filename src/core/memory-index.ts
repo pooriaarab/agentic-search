@@ -1,9 +1,7 @@
-import { matchesTerm, tokenize } from "./text.js";
+import { analyzeItem } from "./analyze.js";
+import { termScore } from "./score.js";
+import { matchesTerm } from "./text.js";
 import type { IndexedItem, IndexStore, ItemFilter, StoreHit, StoreQuery } from "./types.js";
-
-const K1 = 1.2;
-const B = 0.75;
-const TITLE_WEIGHT = 3;
 
 export type MemoryBacking = Map<string, Doc>;
 
@@ -14,18 +12,7 @@ interface Doc {
 }
 
 function analyze(item: IndexedItem): Doc {
-  const tf = new Map<string, number>();
-  let length = 0;
-  for (const [text, weight] of [
-    [item.title, TITLE_WEIGHT],
-    [item.text, 1],
-  ] as const) {
-    for (const tok of tokenize(text)) {
-      tf.set(tok.term, (tf.get(tok.term) ?? 0) + weight);
-      length += weight;
-    }
-  }
-  return { item, tf, length };
+  return { item, ...analyzeItem(item) };
 }
 
 function passes(item: IndexedItem, f: ItemFilter): boolean {
@@ -41,7 +28,7 @@ function passes(item: IndexedItem, f: ItemFilter): boolean {
 }
 
 /**
- * In-memory index with BM25 ranking. Title tokens count three times.
+ * In-memory index with BM25-shaped ranking (see score.ts). Title tokens count three times.
  * It scans every item per query, so use it for tests and small data sets.
  * Pass a shared map to make two instances see the same data.
  */
@@ -89,14 +76,6 @@ export class MemoryIndex implements IndexStore {
     const all = [...this.docs.values()];
     const last = q.terms.length - 1;
     if (last < 0) return [];
-    const avg = all.reduce((n, d) => n + d.length, 0) / Math.max(all.length, 1) || 1;
-    // Document frequency per query term over the whole index.
-    const df = q.terms.map((term, i) => {
-      let n = 0;
-      for (const d of all) for (const t of d.tf.keys()) if (matchesTerm(t, term, i === last)) { n++; break; }
-      return n;
-    });
-    const N = all.length;
     const hits: StoreHit[] = [];
     for (const d of all) {
       if (!passes(d.item, q.filter)) continue;
@@ -109,8 +88,7 @@ export class MemoryIndex implements IndexStore {
           all_ = false;
           break;
         }
-        const idf = Math.log(1 + (N - (df[i] as number) + 0.5) / ((df[i] as number) + 0.5));
-        score += (idf * tf * (K1 + 1)) / (tf + K1 * (1 - B + (B * d.length) / avg));
+        score += termScore(tf, d.length);
       }
       if (all_) hits.push({ item: structuredClone(d.item), score });
     }

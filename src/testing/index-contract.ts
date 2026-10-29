@@ -163,6 +163,25 @@ export function runIndexContract(name: string, make: () => Promise<ContractHarne
       expect(await ids(s, q("near"))).toEqual(["a"]);
     });
 
+    test("a score does not depend on other items in the index", async () => {
+      const s = await setup();
+      await s.upsert([item("a", { title: "t", text: "rare common" })]);
+      const alone = (await s.search(q("rare")))[0]!.score;
+      // Other owners add items that match the term, change the average length, and add noise.
+      await s.upsert([
+        ...Array.from({ length: 20 }, (_, i) => item(`n${i}`, { owner: "u2", title: "t", text: `rare ${"filler ".repeat(i * 5)}` })),
+      ]);
+      expect((await s.search(q("rare", { filter: { owner: "u1" } })))[0]!.score).toBe(alone);
+    });
+
+    test("an item with thousands of distinct terms indexes and is found", async () => {
+      const s = await setup();
+      const text = Array.from({ length: 4_000 }, (_, i) => `w${i}x`).join(" ");
+      await s.upsert([item("big", { text })]);
+      expect(await ids(s, q("w3999x"))).toEqual(["big"]);
+      expect(await ids(s, q("w1x"))).toEqual(["big"]);
+    });
+
     test("two writers on the same data leave one coherent row per id", async () => {
       const s = await setup();
       const p = h.peer();
