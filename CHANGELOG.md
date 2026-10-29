@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.0
+
+Minor. New `agentic-search/ui` export. No change to the SDK, CLI, MCP or HTTP shape.
+
+- Add `agentic-search/ui`: a React `SearchBox` with a `/` and Ctrl+K shortcut, debounced queries, results grouped by kind, keyboard navigation, and empty and error states (#56). Import `agentic-search/ui.css` for its styles.
+- `agentic-design` (`^0.5.0`) is a dependency. `react` and `react-dom` are optional peers.
+- The demo Worker serves the search box and a read-only search API over sample items. Before, every call except health answered 500.
+- Add browser tests with axe (WCAG 2.2 AA, light and dark, 390px wide). `ci:local` runs them.
+
 ## 0.5.1
 
 Patch. No change to the SDK, CLI, MCP or HTTP shape.

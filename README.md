@@ -6,7 +6,7 @@
 
 Search and indexing for documents, sheets, slides, files and comments, for people and agents. Ports and adapters, Cloudflare first.
 
-**Status:** version 0.5.1. The library, the D1 adapter, the Worker API, the HTTP client, the CLI, the MCP server and the vector port work. See Limits before you rely on it.
+**Status:** version 0.6.0. The library, the D1 adapter, the Worker API, the HTTP client, the React search box, the CLI, the MCP server and the vector port work. See Limits before you rely on it.
 
 ## Install
 
@@ -142,6 +142,32 @@ try {
 - A failed call throws `SearchApiError`. The Worker sends only an error text, so `code` comes from the status: `INVALID_INPUT` (400), `UNAUTHENTICATED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `TOO_LARGE` (413), `UNSUPPORTED_MEDIA_TYPE` (415), `INTERNAL` (500). Any other status, and a `200` reply with the wrong shape, is `UNKNOWN`.
 - The client never follows a redirect and never retries. A network failure rejects with the error from `fetch`, not a `SearchApiError`, and so does an aborted call.
 
+## Search box (React)
+
+`agentic-search/ui` is a React search box. It takes a client from `agentic-search/client`, so it searches through the HTTP API and sees only what the caller may read. React 18 or later is an optional peer. The box uses the `agd-` classes of `agentic-design`, which is a dependency.
+
+```tsx
+import "agentic-design/styles.css";
+import "agentic-search/ui.css";
+import { createClient } from "agentic-search/client";
+import { SearchBox } from "agentic-search/ui";
+
+const client = createClient({ baseUrl: "https://search.example.com", token });
+
+<SearchBox client={client} onSelect={(hit) => open(hit.resource)} />;
+```
+
+- Create the client once, outside render or with `useMemo`. A new client makes the box search again.
+- Press `/` or Ctrl+K (Cmd+K on a Mac) to focus the field. Ctrl+K works from any field, so it takes the key from an editor on the same page. A `/` typed in a text field stays text. Set `shortcut={false}` to turn the keys off.
+- A query goes out `debounceMs` (200) after the last key. A newer query cancels the one in flight, so an old answer never replaces a new one.
+- Results show in groups: documents, sheets, slides, files, comments. The field keeps focus. Arrow Down and Arrow Up move through the results, Enter picks one, and Escape closes the panel and then clears the field.
+- A failed call shows an error with a Try again button. It never shows as "no results". No match shows an empty state.
+- It follows the combobox pattern, announces the result count, and works at 390px wide. Tests check it with axe against WCAG 2.2 AA in light and dark.
+- `labels` replaces any text, for other languages. `kinds` limits the search. `limit` sets the page size (default 20).
+- Any object with a `search(request, { signal })` method works as `client`.
+
+Screenshots are in `docs/screenshots`.
+
 ## Live demo
 
 A demo Worker runs at <https://agentic-search-demo.hello-fd1.workers.dev>.
@@ -150,12 +176,13 @@ A demo Worker runs at <https://agentic-search-demo.hello-fd1.workers.dev>.
 curl https://agentic-search-demo.hello-fd1.workers.dev/api/v1/health
 ```
 
-The demo has no database, no secrets and no authentication. It does not set `SEARCH_UNSAFE_NO_AUTH`, so health answers 200 and every other `/api/v1` call answers 500, because the identity store is missing. It shows that the Worker is up. It holds no data.
+The demo serves the search box on its home page. It has no database, no secrets and no authentication. It holds eleven sample items in memory and accepts any caller as one fixed demo person. Only health and search answer. Every other `/api/v1` call answers 404.
 
 To redeploy, log in to Cloudflare with your own account and run:
 
 ```sh
 npm ci
+npm run build
 npm run deploy:demo
 ```
 
@@ -169,6 +196,8 @@ The script runs `wrangler deploy` with `wrangler.demo.jsonc` and turns wrangler 
 - Ranking uses no corpus statistics (no document frequency, no average length), so hidden items never change the order a caller sees. The price is less weight for rare words.
 - The CLI and MCP index is one JSON file for one machine. It has no cross-machine sharing.
 - The vector port has no filter, so a store with very many hidden items can make hybrid search slower. No vector adapter ships besides the memory one.
+- The search box shows one page of results. It has no "load more" yet, so a result past `limit` is out of reach. Narrow the query or raise `limit`.
+- The search box is a field with a panel. It does not open a full-screen dialog.
 - The default Worker needs the identity tables in its `DB` binding. Issue credentials with `agentic-identity`. See HTTP API.
 
 ## Develop
@@ -177,6 +206,8 @@ The script runs `wrangler deploy` with `wrangler.demo.jsonc` and turns wrangler 
 npm ci
 npm run ci:local
 ```
+
+`ci:local` also runs the browser tests (`npm run test:e2e`). They need Chromium: run `npx playwright install chromium` once. `npm run build` makes `demo-dist` first, and the tests serve it with the demo Worker.
 
 ## License
 
