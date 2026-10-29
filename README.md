@@ -6,7 +6,7 @@
 
 Search and indexing for documents, sheets, slides, files and comments, for people and agents. Ports and adapters, Cloudflare first.
 
-**Status:** version 0.1.0, first release. The library, the D1 adapter, the Worker API, the CLI, the MCP server and the vector port work. See Limits before you rely on it.
+**Status:** version 0.2.0. The library, the D1 adapter, the Worker API, the HTTP client, the CLI, the MCP server and the vector port work. See Limits before you rely on it.
 
 ## Install
 
@@ -136,7 +136,7 @@ try {
 - The methods are `health`, `search`, `index`, `remove`, `exportOwner`, and `eraseOwner`. Each takes an optional `{ signal }`.
 - `baseUrl` is the Worker URL, `http` or `https`, with no query, hash, or credentials.
 - A failed call throws `SearchApiError`. The Worker sends only an error text, so `code` comes from the status: `INVALID_INPUT` (400), `UNAUTHENTICATED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `TOO_LARGE` (413), `UNSUPPORTED_MEDIA_TYPE` (415), `INTERNAL` (500). Any other status, and a `200` reply with the wrong shape, is `UNKNOWN`.
-- The client never follows a redirect and never retries.
+- The client never follows a redirect and never retries. A network failure rejects with the error from `fetch`, not a `SearchApiError`, and so does an aborted call.
 
 ## Live demo
 

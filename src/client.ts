@@ -101,12 +101,14 @@ export function createClient(options: ClientOptions): SearchClient {
   }
   const root = `${origin.origin}${origin.pathname.replace(/\/+$/, "")}/api/v1`;
   const token = options.token;
-  // Read at call time so a test can swap the global. A custom fetch is called as a plain function.
-  const send = (input: string, init: RequestInit) => (options.fetch === undefined ? globalThis.fetch(input, init) : options.fetch(input, init));
+  // Read at call time so a test can swap the global. A custom fetch is called as a plain function,
+  // with no `this`, so `window.fetch` and a Workers `fetch` work.
+  const custom = options.fetch;
+  const send = (input: string, init: RequestInit) => (custom === undefined ? globalThis.fetch(input, init) : custom(input, init));
   // A segment of "", ".", or ".." is dropped or resolved by the URL parser, so the call would go to
-  // another route. Refuse it, with its encoded forms.
+  // another route. Refuse it. encodeURIComponent turns "%" into "%25", so no other id can do this.
   const seg = (value: string): string => {
-    if (typeof value !== "string" || /^(?:\.|%2e){0,2}$/i.test(value)) throw new TypeError("an id must be a non-empty string that is not . or ..");
+    if (typeof value !== "string" || /^\.{0,2}$/.test(value)) throw new TypeError("an id must be a non-empty string that is not . or ..");
     return encodeURIComponent(value);
   };
 

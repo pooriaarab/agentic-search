@@ -102,9 +102,10 @@ describe("createClient against the Worker handler", () => {
   test("an id is encoded, and a dot segment is refused before any request", async () => {
     const { as, seen } = await setup();
     const ann = as(ANN);
-    for (const id of ["", ".", "..", "%2e%2E"]) await expect(ann.remove(id)).rejects.toThrow(TypeError);
+    for (const id of ["", ".", ".."]) await expect(ann.remove(id)).rejects.toThrow(TypeError);
     expect(await ann.remove("a/b")).toEqual({ removed: false });
-    expect(seen.map((s) => s.url)).toEqual(["https://search.test/api/v1/items/a%2Fb"]);
+    expect(await ann.remove("%2e")).toEqual({ removed: false });
+    expect(seen.map((s) => s.url)).toEqual(["https://search.test/api/v1/items/a%2Fb", "https://search.test/api/v1/items/%252e"]);
   });
 
   test("a reply that is not the expected shape fails as UNKNOWN", async () => {
@@ -127,6 +128,16 @@ describe("createClient against the Worker handler", () => {
       expect(() => createClient({ baseUrl, token: ANN })).toThrow(TypeError);
     }
     expect(() => createClient({ baseUrl: "https://x.test", token: "" })).toThrow(TypeError);
+  });
+
+  test("a custom fetch is called with no this", async () => {
+    const holder = {
+      fetch(this: unknown): Promise<Response> {
+        if (this !== undefined) throw new TypeError("Illegal invocation");
+        return Promise.resolve(Response.json({ ok: true, name: "n", version: "v" }));
+      },
+    };
+    expect(await createClient({ baseUrl: "https://c.test", token: ANN, fetch: holder.fetch }).health()).toMatchObject({ ok: true });
   });
 
   test("an aborted call rejects with the signal reason", async () => {
