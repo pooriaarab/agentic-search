@@ -87,6 +87,25 @@ Bindings: `DB` (D1, run `migrations/0001_init.sql`), `SEARCH_CURSOR_SECRET` (32 
 
 Errors: 400 bad input, 401 no principal, 403 not allowed, 413 and 415 bad body, 500 internal (no details).
 
+## Live demo
+
+A demo Worker runs at <https://agentic-search-demo.hello-fd1.workers.dev>.
+
+```sh
+curl https://agentic-search-demo.hello-fd1.workers.dev/api/v1/health
+```
+
+The demo has no database, no secrets and no authentication. It does not set `SEARCH_UNSAFE_NO_AUTH`, so health answers 200 and every other `/api/v1` call answers 401. It shows that the Worker is up. It holds no data.
+
+To redeploy, log in to Cloudflare with your own account and run:
+
+```sh
+npm ci
+npm run deploy:demo
+```
+
+The script runs `wrangler deploy` with `wrangler.demo.jsonc` and turns wrangler telemetry off. Keep the Cloudflare token in your shell. Do not commit it. Do not add it as a CI secret.
+
 ## Limits
 
 - The memory index scans every item per query. Use it for tests and small sets.
