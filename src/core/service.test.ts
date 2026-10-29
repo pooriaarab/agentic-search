@@ -363,6 +363,9 @@ describe("snippet cuts", () => {
       "word" + "x".repeat(155) + family + "tail",
       "word" + "x".repeat(159) + accent + "tail",
       "x".repeat(300) + family.repeat(3) + " word " + "y".repeat(200) + accent.repeat(40),
+      "🇩🇪".repeat(100) + ".word." + "🇩🇪".repeat(100),
+      "a".repeat(50) + "🇩🇪".repeat(100) + ".word." + "🇩🇪".repeat(100),
+      "a".repeat(51) + "🇩🇪".repeat(100) + ".word." + "🇩🇪".repeat(100),
       "z".repeat(120) + accent + "word" + "y".repeat(100) + family.repeat(30),
     ];
     for (const text of cases) {

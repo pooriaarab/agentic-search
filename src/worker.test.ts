@@ -138,6 +138,10 @@ describe("worker E2E on D1 (miniflare)", () => {
     expect(bad.status).toBe(400);
   });
 
+  test("a broken percent-encoding is a 400", async () => {
+    expect((await call("DELETE", "/api/v1/items/%E0", "u1")).status).toBe(400);
+  });
+
   test("an unknown principal kind is refused, never defaulted", async () => {
     const res = await mf.dispatchFetch("http://x/api/v1/search", {
       method: "POST",

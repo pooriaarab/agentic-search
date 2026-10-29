@@ -1,7 +1,7 @@
 import { createSearch, type SearchService } from "./core/service.js";
 import { ForbiddenError, ValidationError } from "./core/errors.js";
 import { D1Index, type D1Like } from "./adapters/d1.js";
-import type { Logger, Principal } from "./core/types.js";
+import type { AccessPolicy, Logger, Principal } from "./core/types.js";
 import { VERSION } from "./version.js";
 
 /**
@@ -26,6 +26,8 @@ export interface WorkerOptions {
   /** Build the service for one request environment. Defaults to D1 from `env.DB`. */
   service?: (env: WorkerEnv) => Promise<SearchService>;
   logger?: Logger;
+  /** Access policy for the default service. Defaults to owner-only. */
+  access?: AccessPolicy;
 }
 
 const MAX_BODY = 5_000_000;
@@ -54,10 +56,10 @@ async function readJson(request: Request): Promise<unknown> {
   }
   const declared = Number(request.headers.get("content-length") ?? 0);
   if (declared > MAX_BODY) throw new HttpError(413, "body is too large");
-  const text = await request.text();
-  if (text.length > MAX_BODY) throw new HttpError(413, "body is too large");
+  const bytes = await request.arrayBuffer();
+  if (bytes.byteLength > MAX_BODY) throw new HttpError(413, "body is too large");
   try {
-    return JSON.parse(text);
+    return JSON.parse(new TextDecoder().decode(bytes));
   } catch {
     throw new HttpError(400, "body is not valid JSON");
   }
@@ -65,15 +67,20 @@ async function readJson(request: Request): Promise<unknown> {
 
 const serviceCache = new WeakMap<object, Promise<SearchService>>();
 
-async function defaultService(env: WorkerEnv): Promise<SearchService> {
-  if (env.DB === undefined) throw new Error("the DB binding is missing");
-  return createSearch({ store: new D1Index(env.DB), cursorSecret: env.SEARCH_CURSOR_SECRET ?? "" });
-}
-
 /** Build a Worker handler around an injected verifier. */
 export function createWorker(opts: WorkerOptions) {
   const log: Logger = opts.logger ?? { event() {} };
-  const build = opts.service ?? defaultService;
+  const build =
+    opts.service ??
+    (async (env: WorkerEnv) => {
+      if (env.DB === undefined) throw new Error("the DB binding is missing");
+      return createSearch({
+        store: new D1Index(env.DB),
+        cursorSecret: env.SEARCH_CURSOR_SECRET ?? "",
+        access: opts.access,
+        logger: opts.logger,
+      });
+    });
 
   async function route(request: Request, env: WorkerEnv, svc: () => Promise<SearchService>): Promise<Response> {
     const url = new URL(request.url);
@@ -92,7 +99,12 @@ export function createWorker(opts: WorkerOptions) {
     }
     if (principal === null || typeof principal !== "object") return fail(401, "unauthenticated");
 
-    const parts = path.slice("/api/v1/".length).split("/").map(decodeURIComponent);
+    let parts: string[];
+    try {
+      parts = path.slice("/api/v1/".length).split("/").map(decodeURIComponent);
+    } catch {
+      return fail(400, "path is not valid percent-encoding");
+    }
     const [a, b, c] = parts;
     if (parts.length === 1 && a === "search" && method === "POST") {
       return json(await (await svc()).search(principal, (await readJson(request)) as never));

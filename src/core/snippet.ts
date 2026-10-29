@@ -2,22 +2,16 @@ import { highlightRanges } from "./text.js";
 import type { Highlight, Snippet } from "./types.js";
 
 const WINDOW = 160;
-const SCAN = 256;
 const segmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 
 /** Nearest grapheme boundary at or after (dir 1) or at or before (dir -1) `index`. */
 function snapToGrapheme(text: string, index: number, dir: 1 | -1): number {
   if (index <= 0) return 0;
   if (index >= text.length) return text.length;
-  const base = Math.max(0, index - SCAN);
-  const limit = Math.min(text.length, index + SCAN);
-  let best = dir === 1 ? limit : base;
-  for (const seg of segmenter.segment(text.slice(base, limit))) {
-    const at = base + seg.index;
-    if (dir === 1 && at >= index) return at;
-    if (dir === -1 && at <= index) best = at;
-  }
-  return best;
+  // `containing` looks up one cluster. It reads back to a safe point, so a run of flags pairs correctly.
+  const seg = segmenter.segment(text).containing(index);
+  if (seg === undefined || seg.index === index) return index;
+  return dir === 1 ? seg.index + seg.segment.length : seg.index;
 }
 
 /** Build a snippet from allowed item text. Highlight offsets index into `snippet.text`. */
