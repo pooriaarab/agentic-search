@@ -4,12 +4,14 @@
 
 Minor. Breaking for the default Worker export; see the first item.
 
-- Breaking: the default Worker export verifies `agentic-identity` credentials from the `DB` binding (`createStoreAuth`). Set `SEARCH_REGION`. Before, it refused every API call unless the dev flag was set. A missing token is 401 and a token without the route scope is 403. `SEARCH_UNSAFE_NO_AUTH=1` with `SEARCH_ENV` stays as the explicit local dev opt-in.
-- The zod dependency is `^4.6.7`. Earlier versions can use a lot of memory on oversized constrained collections (GHSA-mrhx-c7xc-m3w5).
-- `agentic-identity` is `^0.7.0`. The lockfile follows.
-- `agentic-search mcp --version` prints the version and exits 0, like `--help`. Before, the flag failed as an unknown flag and exited 2.
-- A missing principal names the missing flags and the `AGENTIC_SEARCH_AS` and `AGENTIC_SEARCH_KIND` variables. The MCP server exits non-zero.
-- The publish workflow runs one publish at a time per ref. A second run waits for the first. A running publish finishes.
+- Breaking: the default Worker export verifies `agentic-identity` credentials from the `DB` binding (`createStoreAuth`) (#45). Set `SEARCH_REGION`. Before, it refused every API call unless the dev flag was set. A missing token is 401 and a token without the route scope is 403. `SEARCH_UNSAFE_NO_AUTH=1` with `SEARCH_ENV` stays as the explicit local dev opt-in.
+- The zod dependency is `^4.6.7` (#47, #49). Earlier versions can use a lot of memory on oversized constrained collections (GHSA-mrhx-c7xc-m3w5).
+- The MCP tools advertise a new input schema, from zod 4 (#49). Object schemas no longer set `additionalProperties: false`, and integer fields carry a min and max. Extra keys are still stripped at runtime. Invalid-argument error text now uses zod 4 wording. The status and the `isError` shape do not change.
+- The MCP SDK floor is `^1.23.0` (#49), the first release that accepts zod 4 schemas.
+- `agentic-identity` is `^0.7.0` (#40). The lockfile follows.
+- `agentic-search mcp --version` prints the version and exits 0, like `--help` (#41). Before, the flag failed as an unknown flag and exited 2.
+- A missing principal names the missing flags and the `AGENTIC_SEARCH_AS` and `AGENTIC_SEARCH_KIND` variables (#41). The MCP server exits non-zero.
+- The publish workflow runs one publish at a time per ref (#43). A second run waits for the first. A running publish finishes.
 
 ## 0.4.0
 
