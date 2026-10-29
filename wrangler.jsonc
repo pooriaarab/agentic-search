@@ -2,6 +2,12 @@
   "name": "agentic-search",
   "main": "src/worker.ts",
   "compatibility_date": "2026-01-01",
+  // Create the database with an EU location hint if you need EU residency:
+  //   wrangler d1 create agentic-search --location eu
+  // Then set the id, apply migrations, and set SEARCH_CURSOR_SECRET (32 bytes or more) with `wrangler secret put`.
+  "d1_databases": [
+    { "binding": "DB", "database_name": "agentic-search", "database_id": "REPLACE_WITH_YOUR_DATABASE_ID", "migrations_dir": "migrations" }
+  ],
   "vars": {
     "SEARCH_NAME": "agentic-search"
   }

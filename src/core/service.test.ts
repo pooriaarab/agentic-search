@@ -368,7 +368,7 @@ describe("snippet cuts", () => {
     for (const text of cases) {
       const { makeSnippet } = await import("./snippet.js");
       const out = makeSnippet(text, ["word"]).text;
-      expect(out.isWellFormed()).toBe(true);
+      expect(/[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/.test(out)).toBe(false);
       const body = out.replace(/^…/, "").replace(/…$/, "");
       const from = text.indexOf(body);
       expect(from).toBeGreaterThanOrEqual(0);
