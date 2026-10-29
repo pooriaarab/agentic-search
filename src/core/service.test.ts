@@ -75,12 +75,16 @@ describe("access filter", () => {
 
   test("a cursor never names a hidden item", async () => {
     const { svc } = await setup();
-    await svc.index(bob, Array.from({ length: 10 }, (_, i) => secret(`b${i}`, "bob", "term term term")));
-    await svc.index(alice, Array.from({ length: 4 }, (_, i) => secret(`a${i}`, "alice", "term")));
+    // Long, distinctive ids: random ciphertext cannot contain them by chance.
+    const hidden = Array.from({ length: 10 }, (_, i) => `hidden-bob-item-${i}`);
+    await svc.index(bob, hidden.map((id) => secret(id, "bob", "term term term")));
+    await svc.index(alice, Array.from({ length: 4 }, (_, i) => secret(`visible-alice-item-${i}`, "alice", "term")));
     const page = await svc.search(alice, { query: "term", limit: 2 });
-    const raw = Buffer.from(page.nextCursor!, "base64url").toString("latin1");
-    // Sealed: neither ids nor the score are readable in the cursor.
-    expect(raw).not.toMatch(/"i"|"s"|b\d|a\d/);
+    expect(page.nextCursor).toBeDefined();
+    const bytes = Buffer.from(page.nextCursor!, "base64url");
+    // Sealed: the cursor is not readable JSON, and no hidden item id appears in its bytes.
+    expect(() => JSON.parse(bytes.toString("utf8"))).toThrow();
+    for (const id of hidden) expect(bytes.toString("latin1")).not.toContain(id);
   });
 
   test("the scan cap bounds the work, then continues so no match is lost", async () => {
