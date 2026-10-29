@@ -48,6 +48,10 @@
     "./d1": {
       "types": "./dist/adapters/d1.d.ts",
       "import": "./dist/adapters/d1.js"
+    },
+    "./worker": {
+      "types": "./dist/worker.d.ts",
+      "import": "./dist/worker.js"
     }
   },
   "bin": {

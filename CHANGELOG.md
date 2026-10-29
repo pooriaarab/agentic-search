@@ -14,9 +14,9 @@ First release.
   an injectable `AccessPolicy`. Access is checked before any hit, snippet or
   cursor is returned.
 - Items with the kinds `document`, `sheet`, `slide`, `file` and `comment`.
-- Query with ANDed words, a prefix match on the last word, BM25-shaped ranking
-  without corpus statistics, and title boost, snippets with highlight offsets, and filters for kind, owner,
-  resource and time range.
+- Query with ANDed words and a prefix match on the last word. Ranking is
+  BM25-shaped with no corpus statistics, plus a title boost. Snippets carry
+  highlight offsets. Filters cover kind, owner, resource and time range.
 - Sealed pagination cursors (AES-GCM, key from `cursorSecret`).
 - Erase and export by owner (`eraseOwner`, `exportOwner`) and removal by item
   (`remove`).
@@ -24,15 +24,17 @@ First release.
 - Contract suite for store adapters: `agentic-search/testing`
   (`runIndexContract`).
 - HTTP API as a Cloudflare Worker under `/api/v1`: search, item index and
-  remove, owner export and erase, and health.
+  remove, owner export and erase, and health. Build your own Worker with
+  `createWorker` from `agentic-search/worker`.
 - CLI: `agentic-search` (`npx agentic-search --help`).
 - MCP server: `agentic-search mcp` over stdio, also `agentic-search-mcp`.
 
 ### Known limits
 
 - The default Worker has no real authentication. It refuses `/api/v1` calls
-  unless `SEARCH_UNSAFE_NO_AUTH=1` is set. Use `createWorker({ verifier })`
-  with your own `AuthVerifier` for real use.
+  unless `SEARCH_UNSAFE_NO_AUTH=1` is set. For real use, call
+  `createWorker({ verifier })` from `agentic-search/worker` with your own
+  `AuthVerifier`.
 - The memory index scans every item on each query. Use it for tests and small
   sets.
 - A search scans at most 1000 store hits. Hidden items can make a page short
