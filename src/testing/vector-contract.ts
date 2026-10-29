@@ -34,7 +34,16 @@ export function runVectorContract(name: string, make: () => Promise<VectorStore>
       const s = await seed();
       expect(await s.remove("x")).toBe(true);
       expect(await s.remove("x")).toBe(false);
-      expect((await s.query([1, 0], 10)).map((h) => h.id)).not.toContain("x");
+      expect((await s.query([1, 0], 10)).map((h) => h.id)).toEqual(["y", "z"]);
+    });
+
+    test("upsert moves an id to its new owner, so erase by owner finds it", async () => {
+      const s = await seed();
+      await s.upsert([{ id: "x", owner: "o2", vector: [1, 0] }]);
+      expect(await s.removeByOwner("o1")).toBe(0);
+      expect((await s.query([1, 0], 10)).filter((h) => h.id === "x")).toHaveLength(1);
+      expect(await s.removeByOwner("o2")).toBe(3);
+      expect(await s.query([1, 0], 10)).toEqual([]);
     });
 
     test("removeByOwner drops that owner's vectors and keeps the rest", async () => {

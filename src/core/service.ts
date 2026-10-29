@@ -188,6 +188,7 @@ export async function createSearch(opts: SearchServiceOptions): Promise<SearchSe
         }
         return !verdict.has(h.id);
       });
+      if (new Set(fresh.map((h) => h.id)).size !== fresh.length) throw new Error("the vector store returned an id twice");
       const loaded = await Promise.all(fresh.map((h) => items.get(h.id) ?? store.get(h.id)));
       // An id the store no longer holds, or one outside the filter, is dropped.
       const cands = fresh.flatMap((h, i) => {

@@ -210,6 +210,13 @@ describe("review cases", () => {
     await expect(svc.search(u1, { query: "money" })).rejects.toThrow("bad hit");
   });
 
+  test("a vector store that repeats an id is refused", async () => {
+    const vstore = new MemoryVectorStore(3);
+    vstore.query = async () => [{ id: "a", score: 0.9 }, { id: "a", score: 0.8 }];
+    const svc = await createSearch({ store: new MemoryIndex(), cursorSecret: SECRET, vectors: { embedder: fakeEmbedder, store: vstore } });
+    await expect(svc.search(u1, { query: "money" })).rejects.toThrow("twice");
+  });
+
   test("reindex embeds in batches", async () => {
     const sizes: number[] = [];
     const embedder: Embedder = { dimensions: 3, embed: async (t) => (sizes.push(t.length), t.map(() => [1, 0, 0])) };

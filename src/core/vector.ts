@@ -24,7 +24,8 @@ export interface VectorHit {
 /**
  * Vector store port. It knows ids and owners, never access rules: the service
  * filters every hit through the access policy before it uses it.
- * Erase by id and by owner must remove the vectors too.
+ * Erase by id and by owner must remove the vectors too. A failed `upsert`
+ * can leave an old vector in place, so a caller retries `index` after an error.
  */
 export interface VectorStore {
   upsert(entries: VectorEntry[]): Promise<void>;
