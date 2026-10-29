@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.3.1
+
+- The MCP bin prints its version for `agentic-search-mcp --version` and `-V`, and exits 0. Before, the flag reached `mcp` and failed as an unknown flag. Only a first argument counts, as in the CLI.
+- More principal edge tests: a `user_token` with `actingFor`, an `actingFor` at 256 characters, ids that start with `_` or `-`, and a non-principal error from the identity check that passes through unchanged. Tests only.
+
 ## 0.3.0
 
 - Breaking: `parsePrincipal` checks the principal `id` with the `agentic-identity` rule. An id must start with an ASCII letter, digit, `_` or `-`, hold only ASCII letters, digits, `.`, `_` and `-`, and be at most 128 characters. Ids with `@`, `:`, spaces or non-ASCII letters (for example `zoë`), and longer ids, now throw `ValidationError`. The `actingFor` subject keeps the old rule (any non-empty string up to 256 characters).
