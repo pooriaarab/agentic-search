@@ -2,6 +2,23 @@ import { highlightRanges } from "./text.js";
 import type { Highlight, Snippet } from "./types.js";
 
 const WINDOW = 160;
+const SCAN = 256;
+const segmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+
+/** Nearest grapheme boundary at or after (dir 1) or at or before (dir -1) `index`. */
+function snapToGrapheme(text: string, index: number, dir: 1 | -1): number {
+  if (index <= 0) return 0;
+  if (index >= text.length) return text.length;
+  const base = Math.max(0, index - SCAN);
+  const limit = Math.min(text.length, index + SCAN);
+  let best = dir === 1 ? limit : base;
+  for (const seg of segmenter.segment(text.slice(base, limit))) {
+    const at = base + seg.index;
+    if (dir === 1 && at >= index) return at;
+    if (dir === -1 && at <= index) best = at;
+  }
+  return best;
+}
 
 /** Build a snippet from allowed item text. Highlight offsets index into `snippet.text`. */
 export function makeSnippet(text: string, terms: string[]): Snippet {
@@ -19,6 +36,9 @@ export function makeSnippet(text: string, terms: string[]): Snippet {
     const space = text.lastIndexOf(" ", end);
     if (space > start) end = space;
   }
+  // A cut must not split a grapheme (an emoji sequence, a letter and its accent).
+  start = snapToGrapheme(text, start, 1);
+  end = Math.max(start, snapToGrapheme(text, end, -1));
   const lead = start > 0 ? "…" : "";
   const tail = end < text.length ? "…" : "";
   // One space per whitespace char keeps highlight offsets stable.
