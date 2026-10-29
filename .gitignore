@@ -7,3 +7,5 @@ coverage/
 .DS_Store
 .wrangler/
 .review*
+.agentic-search/
+dist-test/

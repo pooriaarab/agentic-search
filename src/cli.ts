@@ -1,51 +1,10 @@
 #!/usr/bin/env node
 import { realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
-import { VERSION } from "./version.js";
+import { runCli } from "./cli-core.js";
 
-export interface CliIo {
-  out(line: string): void;
-  err(line: string): void;
-}
-
-const HELP = [
-  `agentic-search ${VERSION}`,
-  "Search for documents, sheets, slides, files and comments.",
-  "",
-  "Usage: agentic-search <command> [flags]",
-  "",
-  "Commands:",
-  "  mcp   Start the MCP server on stdio.",
-  "",
-  "Flags:",
-  "  --help, -h       Print this help.",
-  "  --version, -V    Print the version.",
-].join("\n");
-
-const defaultIo: CliIo = {
-  out: (line) => console.log(line),
-  err: (line) => console.error(line),
-};
-
-export async function runCli(argv: string[], io: CliIo = defaultIo): Promise<number> {
-  const [first] = argv;
-  if (first === undefined || first === "--help" || first === "-h") {
-    io.out(HELP);
-    return 0;
-  }
-  if (first === "--version" || first === "-V") {
-    io.out(VERSION);
-    return 0;
-  }
-  if (first === "mcp") {
-    const { startMcp } = await import("./mcp.js");
-    await startMcp();
-    return 0;
-  }
-  io.err(`unknown command "${first}"`);
-  io.err('Run "agentic-search --help" for usage.');
-  return 2;
-}
+export { runCli };
+export type { CliIo } from "./cli-core.js";
 
 function isMainModule(): boolean {
   const invoked = process.argv[1];
