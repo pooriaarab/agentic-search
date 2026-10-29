@@ -4,6 +4,7 @@ Search for documents, sheets, slides, files and comments, filtered by what the c
 
 - CLI: npx agentic-search --help
 - MCP: npx agentic-search mcp (tools: search, index, remove, export_owner, erase_owner)
+- SDK: import { createSearch, MemoryIndex } from "agentic-search". Subpaths: "agentic-search/d1", "agentic-search/worker", "agentic-search/testing". The README lists every export under "SDK exports".
 - HTTP API: Worker under /api/v1 (search, items, owner export and erase)
 - Principal is required: --as, --kind (no default kind)
 

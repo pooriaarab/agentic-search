@@ -5,7 +5,7 @@ export { MemoryIndex } from "./core/memory-index.js";
 export { ownerPolicy } from "./core/access.js";
 export { ForbiddenError, ValidationError } from "./core/errors.js";
 export { parseItem, parsePrincipal, subjectOf, LIMITS } from "./core/validate.js";
-export { tokenize, queryTerms, normalizeToken } from "./core/text.js";
+export { tokenize, queryTerms } from "./core/text.js";
 export { MemoryVectorStore, reciprocalRankFusion } from "./core/vector.js";
 export type { Embedder, HybridRanker, Ranked, VectorEntry, VectorHit, VectorStore } from "./core/vector.js";
 export { ITEM_KINDS, PRINCIPAL_KINDS } from "./core/types.js";
