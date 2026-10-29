@@ -6,7 +6,7 @@
 
 Search and indexing for documents, sheets, slides, files and comments, for people and agents. Ports and adapters, Cloudflare first.
 
-**Status:** version 0.0.0, early. The core library works: model, memory index, access filter, erase and export. The D1 adapter and the Worker API work. The CLI and MCP tools come in later pull requests.
+**Status:** version 0.1.0, first release. The library, the D1 adapter, the Worker API, the CLI, the MCP server and the vector port work. See Limits before you rely on it.
 
 ## Install
 
@@ -44,11 +44,22 @@ const page = await search.search(me, { query: "budget", kinds: ["document"], lim
 // page.nextCursor is set when more results exist.
 ```
 
+### CLI and MCP
+
+```sh
+export AGENTIC_SEARCH_AS=u1 AGENTIC_SEARCH_KIND=human
+npx agentic-search index items.json
+npx agentic-search search budget --json
+npx agentic-search mcp
+```
+
+The principal is required, and there is no default kind. The CLI and MCP keep a local JSON index in `./.agentic-search` (set `--data` or `AGENTIC_SEARCH_DATA`). It is for one machine and small data. Use the HTTP API with D1 for shared data. The MCP tools are `search`, `index`, `remove`, `export_owner` and `erase_owner`.
+
 ## How it works
 
 - **Items.** An item has `id`, `kind` (`document`, `sheet`, `slide`, `file`, `comment`), `title`, `text`, `owner`, a `resource` reference and `updatedAt`.
 - **Query.** Words are ANDed. The last word also matches as a prefix. Case and accents do not matter. Filters: kinds, owner, resource, time range.
-- **Ranking.** BM25. Title words count three times.
+- **Ranking.** Saturated term frequency with length normalisation (the BM25 shape). Title words count three times. No corpus statistics.
 - **Snippets.** A text window with highlight offsets. No HTML is produced.
 - **Pagination.** A sealed cursor (AES-GCM, key from `cursorSecret`). Callers cannot read it. It works only for the query and caller that made it. A missing or short secret throws.
 - **Access.** Inject an `AccessPolicy`. The default lets a principal read only what its subject owns. The service checks the policy before it returns any hit, snippet or cursor. Only an answer of exactly `true` allows. A malformed answer throws.
@@ -56,7 +67,8 @@ const page = await search.search(me, { query: "budget", kinds: ["document"], lim
 - **Principals.** Every call takes a principal with a required `kind`. Agent principals act for a subject.
 - **Privacy.** `eraseOwner` and `remove` delete data. `exportOwner` returns everything indexed for one owner. Logs hold counts only.
 - **D1.** `import { D1Index } from "agentic-search/d1"`. Run `D1Index.migrate(env.DB)` once, then pass `new D1Index(env.DB)` as `store`. Create the database with an EU location hint if you need EU residency.
-- **Testing your own store.** `agentic-search/testing` exports `runIndexContract` for adapters.
+- **Hybrid search.** Pass `vectors: { embedder, store }` to `createSearch`. You supply an `Embedder` (a model you host) and a `VectorStore`. `MemoryVectorStore` is the reference. Word hits and vector hits are cut to what the caller may read, then fused (reciprocal rank fusion, or your own `rank` hook). Erase removes vectors too. A failing embedder fails the call.
+- **Testing your own store.** `agentic-search/testing` exports `runIndexContract` and `runVectorContract` for adapters.
 
 ## HTTP API
 
@@ -81,7 +93,8 @@ Errors: 400 bad input, 401 no principal, 403 not allowed, 413 and 415 bad body, 
 - One search call scans at most 1000 store hits. When hidden items fill that window, the page can be short or empty and still carries `nextCursor`. Keep paging until it ends. A cursor on an empty page shows that the scan window held more matches, some of them maybe hidden from the caller. Treat it as a known signal until stores can filter by access.
 - The D1 adapter reads every posting in the range of the last query term. A very short last term is slow on a large index. An item may hold up to 500,000 characters, so keep an eye on D1 row and statement size limits.
 - Ranking uses no corpus statistics (no document frequency, no average length), so hidden items never change the order a caller sees. The price is less weight for rare words.
-- No CLI search commands or MCP tools yet.
+- The CLI and MCP index is one JSON file for one machine. It has no cross-machine sharing.
+- The vector port has no filter, so a store with very many hidden items can make hybrid search slower. No vector adapter ships besides the memory one.
 - The default Worker has no real authentication. See HTTP API.
 
 ## Develop
