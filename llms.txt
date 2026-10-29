@@ -3,7 +3,9 @@
 Search for documents, sheets, slides, files and comments, filtered by what the caller may read.
 
 - CLI: npx agentic-search --help
-- MCP: npx agentic-search mcp
+- MCP: npx agentic-search mcp (tools: search, index, remove, export_owner, erase_owner)
+- HTTP API: Worker under /api/v1 (search, items, owner export and erase)
+- Principal is required: --as, --kind (no default kind)
 
 ## Docs
 

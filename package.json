@@ -1,6 +1,6 @@
 {
   "name": "agentic-search",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Search for documents, sheets, slides, files and comments, for people and agents. Ports and adapters, access filtered, Cloudflare first.",
   "keywords": [
     "search",
@@ -26,7 +26,8 @@
     "node": ">=20"
   },
   "files": [
-    "dist"
+    "dist",
+    "migrations"
   ],
   "publishConfig": {
     "access": "public"
@@ -46,6 +47,10 @@
     "./d1": {
       "types": "./dist/adapters/d1.d.ts",
       "import": "./dist/adapters/d1.js"
+    },
+    "./worker": {
+      "types": "./dist/worker.d.ts",
+      "import": "./dist/worker.js"
     }
   },
   "bin": {

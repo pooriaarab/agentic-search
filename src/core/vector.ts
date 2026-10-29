@@ -17,7 +17,10 @@ export interface VectorEntry {
 
 export interface VectorHit {
   id: string;
-  /** Higher is closer. Only meaningful inside one store. */
+  /**
+   * Higher is closer. Use cosine similarity: the service drops hits at or below
+   * `minScore` (default 0). For another scale, set `minScore` to match.
+   */
   score: number;
 }
 

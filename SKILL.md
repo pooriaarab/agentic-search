@@ -9,7 +9,7 @@ Search for people and agents. Results hold only items the caller may read.
 
 ## Use the MCP server
 
-Start it with `npx agentic-search mcp`.
+Start it with `npx agentic-search mcp --as <id> --kind <kind>`. Tools: `search`, `index`, `remove`, `export_owner`, `erase_owner`. A failed call returns an error result. A search page has a `nextCursor` while more results exist: pass it back to continue, and keep paging until it is absent.
 
 ## Rules
 
