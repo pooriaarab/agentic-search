@@ -32,14 +32,35 @@ runIndexContract("d1 (miniflare)", async () => {
   return { store: new D1Index(db), peer: () => new D1Index(db) };
 });
 
+async function postingCount(db: D1Like): Promise<number> {
+  const r = await (db.prepare("SELECT COUNT(*) AS n FROM search_postings") as unknown as {
+    all(): Promise<{ results: { n: number }[] }>;
+  }).all();
+  return r.results[0]?.n ?? -1;
+}
+
+test("remove by id leaves no posting rows behind", async () => {
+  const db = await freshDb();
+  const s = new D1Index(db);
+  await s.upsert([item("a", { text: "secret words" })]);
+  expect(await s.remove("a")).toBe(true);
+  expect(await postingCount(db)).toBe(0);
+});
+
+test("a stored row with an unknown kind throws instead of being returned", async () => {
+  const db = await freshDb();
+  const s = new D1Index(db);
+  await s.upsert([item("a", { text: "word" })]);
+  await db.batch([db.prepare("UPDATE search_items SET kind = 'bogus'")]);
+  await expect(s.get("a")).rejects.toThrow("not a valid item");
+  await expect(s.search({ terms: ["word"], filter: {}, limit: 5 })).rejects.toThrow("not a valid item");
+});
+
 test("erase leaves no posting rows behind", async () => {
   const db = await freshDb();
   const s = new D1Index(db);
   await s.upsert([item("a", { text: "secret words" }), item("b", { text: "other" })]);
   await s.removeByOwner("u1");
-  const left = await (db.prepare("SELECT COUNT(*) AS n FROM search_postings") as unknown as {
-    all(): Promise<{ results: { n: number }[] }>;
-  }).all();
-  expect(left.results[0]?.n).toBe(0);
+  expect(await postingCount(db)).toBe(0);
   expect(await s.search({ terms: queryTerms("secret"), filter: {}, limit: 5 })).toEqual([]);
 });

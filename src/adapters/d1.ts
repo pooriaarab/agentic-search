@@ -1,6 +1,7 @@
 import { analyzeItem } from "../core/analyze.js";
 import { B, K1, LENGTH_PIVOT } from "../core/score.js";
-import type { IndexedItem, IndexStore, ItemKind, StoreHit, StoreQuery } from "../core/types.js";
+import type { IndexedItem, IndexStore, StoreHit, StoreQuery } from "../core/types.js";
+import { isItemKind } from "../core/validate.js";
 
 /** The slice of the D1 API this adapter uses. A real `D1Database` fits. */
 export interface D1Like {
@@ -57,9 +58,22 @@ interface Row {
   score?: number;
 }
 
-const toItem = (r: Row): IndexedItem => ({
+/** Fail closed: a row that is not a valid item throws. It never reaches the access filter. */
+const toItem = (r: Row): IndexedItem => {
+  const bad =
+    !isItemKind(r.kind) ||
+    ![r.id, r.owner, r.res_type].every((v) => typeof v === "string" && v.length > 0) ||
+    typeof r.res_id !== "string" ||
+    typeof r.title !== "string" ||
+    typeof r.body !== "string" ||
+    !Number.isInteger(r.updated_at);
+  if (bad) throw new Error("search_items holds a row that is not a valid item");
+  return rowToItem(r);
+};
+
+const rowToItem = (r: Row): IndexedItem => ({
   id: r.id,
-  kind: r.kind as ItemKind,
+  kind: r.kind as IndexedItem["kind"],
   title: r.title,
   text: r.body,
   owner: r.owner,
@@ -71,6 +85,9 @@ const toItem = (r: Row): IndexedItem => ({
  * D1 index store. Items sit in one table. A posting table maps each term to
  * the items that hold it, so a query reads only the rows for its terms.
  * Scores come out of SQL and match the shape in `core/score.ts`.
+ *
+ * One query reads every posting in the range of its last term. A very short
+ * last term is slow on a large index.
  *
  * Data residency: pick the D1 location hint when you create the database
  * (for example `wrangler d1 create <name> --location eu`).
@@ -171,7 +188,7 @@ export class D1Index implements IndexStore {
         params.push(term);
       }
       joins.push(`JOIN t${i} ON t${i}.id = i.id`);
-      scores.push(`(t${i}.tf * ${K1 + 1}) / (t${i}.tf + ${K1} * (${1 - B} + ${B} * i.length / ${LENGTH_PIVOT}.0))`);
+      scores.push(`(t${i}.tf * ${K1 + 1}) / (t${i}.tf + ${K1} * (${1 - B} + ${B} * i.length / ${LENGTH_PIVOT.toFixed(1)}))`);
     });
     const where: string[] = [];
     const f = q.filter;

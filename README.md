@@ -62,6 +62,7 @@ const page = await search.search(me, { query: "budget", kinds: ["document"], lim
 
 - The memory index scans every item per query. Use it for tests and small sets.
 - One search call scans at most 1000 store hits. When hidden items fill that window, the page can be short or empty and still carries `nextCursor`. Keep paging until it ends. A cursor on an empty page shows that the scan window held more matches, some of them maybe hidden from the caller. Treat it as a known signal until stores can filter by access.
+- The D1 adapter reads every posting in the range of the last query term. A very short last term is slow on a large index. An item may hold up to 500,000 characters, so keep an eye on D1 row and statement size limits.
 - Ranking uses no corpus statistics (no document frequency, no average length), so hidden items never change the order a caller sees. The price is less weight for rare words.
 - No HTTP API, CLI search commands or MCP tools yet.
 
