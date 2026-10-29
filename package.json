@@ -1,0 +1,65 @@
+{
+  "name": "agentic-search",
+  "version": "0.0.0",
+  "description": "Search for documents, sheets, slides, files and comments, for people and agents. Ports and adapters, access filtered, Cloudflare first.",
+  "keywords": [
+    "search",
+    "full-text",
+    "bm25",
+    "fts5",
+    "mcp",
+    "Model Context Protocol",
+    "agents",
+    "cloudflare",
+    "d1",
+    "gdpr"
+  ],
+  "license": "MIT",
+  "author": "Pooria Arab",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pooriaarab/agentic-search.git"
+  },
+  "type": "module",
+  "private": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "mcpName": "io.github.pooriaarab/agentic-search",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "agentic-search": "./dist/cli.js",
+    "agentic-search-mcp": "./dist/mcp-bin.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "clean": "rm -rf dist",
+    "ci:local": "npm run build && npm run typecheck && npm test"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "esbuild": "^0.28.2",
+    "tsup": "^8.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^3.0.0"
+  }
+}
