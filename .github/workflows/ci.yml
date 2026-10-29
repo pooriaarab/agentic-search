@@ -27,3 +27,7 @@ jobs:
       - run: npm run build
       - run: npm run typecheck
       - run: npm test
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+        env:
+          WRANGLER_SEND_METRICS: "false"

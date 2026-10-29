@@ -9,3 +9,6 @@ coverage/
 .review*
 .agentic-search/
 dist-test/
+demo-dist/
+test-results/
+playwright-report/

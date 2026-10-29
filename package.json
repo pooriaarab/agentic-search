@@ -1,6 +1,6 @@
 {
   "name": "agentic-search",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "description": "Search for documents, sheets, slides, files and comments, for people and agents. Ports and adapters, access filtered, Cloudflare first.",
   "keywords": [
     "search",
@@ -55,38 +55,63 @@
     "./worker": {
       "types": "./dist/worker.d.ts",
       "import": "./dist/worker.js"
-    }
+    },
+    "./ui": {
+      "types": "./dist/ui/index.d.ts",
+      "import": "./dist/ui/index.js"
+    },
+    "./ui.css": "./dist/ui.css"
   },
   "bin": {
     "agentic-search": "./dist/cli.js",
     "agentic-search-mcp": "./dist/mcp-bin.js"
   },
   "scripts": {
-    "build": "tsup",
-    "typecheck": "tsc --noEmit",
+    "build": "tsup && npm run build:demo",
+    "typecheck": "tsc --noEmit && tsc -p demo",
     "test": "vitest run",
-    "clean": "rm -rf dist",
-    "ci:local": "npm run build && npm run typecheck && npm test",
-    "deploy:demo": "WRANGLER_SEND_METRICS=false npx wrangler deploy --config wrangler.demo.jsonc"
+    "clean": "rm -rf dist demo-dist",
+    "ci:local": "npm run build && npm run typecheck && npm test && npm run test:e2e",
+    "deploy:demo": "WRANGLER_SEND_METRICS=false npx wrangler deploy --config wrangler.demo.jsonc",
+    "build:demo": "vite build --config demo/vite.config.ts",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.23.0",
+    "agentic-design": "^0.5.0",
     "agentic-identity": "^0.8.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@playwright/test": "^1.64.1",
     "@types/node": "^22.0.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^5.2.0",
     "esbuild": "^0.28.2",
     "miniflare": "^4.20260730.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "tsup": "^8.0.0",
     "typescript": "^5.6.0",
-    "vitest": "^3.0.0"
+    "vite": "^7.3.7",
+    "vitest": "^3.0.0",
+    "wrangler": "^4.156.0"
   },
   "peerDependencies": {
-    "vitest": ">=3"
+    "vitest": ">=3",
+    "react": ">=18",
+    "react-dom": ">=18"
   },
   "peerDependenciesMeta": {
     "vitest": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
       "optional": true
     }
   }

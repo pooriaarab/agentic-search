@@ -1,0 +1,4 @@
+.demo { display: grid; justify-items: start; gap: var(--agd-space-4); max-width: 40rem; margin: 0 auto; padding: var(--agd-space-12) var(--agd-space-4); }
+.demo h1 { margin: 0; font-size: var(--agd-font-size-2xl); }
+.demo__lead, .demo__picked { margin: 0; color: var(--agd-color-text-muted); }
+.demo .agd-search { margin-block: var(--agd-space-2); }

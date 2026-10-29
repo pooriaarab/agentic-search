@@ -1,0 +1,70 @@
+/* Styles for SearchBox. Load agentic-design/styles.css first: this file uses its tokens. */
+.agd-search { position: relative; width: 100%; max-width: 40rem; }
+.agd-search__field { position: relative; display: flex; align-items: center; }
+.agd-search__input { width: 100%; padding-inline-end: var(--agd-space-12); }
+.agd-search__hint {
+  position: absolute;
+  inset-inline-end: var(--agd-space-3);
+  min-width: 1.5rem;
+  padding: 0 var(--agd-space-2);
+  border: 1px solid var(--agd-color-border);
+  border-radius: var(--agd-radius-sm);
+  background: var(--agd-color-surface-sunken);
+  color: var(--agd-color-text-muted);
+  font-family: var(--agd-font-family-mono);
+  font-size: var(--agd-font-size-xs);
+  text-align: center;
+  pointer-events: none;
+}
+.agd-search__clear { position: absolute; inset-inline-end: var(--agd-space-1); }
+.agd-search__panel {
+  position: absolute;
+  z-index: 10;
+  inset-inline: 0;
+  top: calc(100% + var(--agd-space-2));
+  max-height: min(28rem, 70vh);
+  overflow-y: auto;
+  padding: var(--agd-space-2);
+  border: 1px solid var(--agd-color-border);
+  border-radius: var(--agd-radius-lg);
+  background: var(--agd-color-surface-raised);
+  box-shadow: var(--agd-shadow-floating);
+}
+.agd-search__panel[aria-busy="true"] [role="listbox"] { opacity: 0.6; }
+.agd-search__group + .agd-search__group { margin-top: var(--agd-space-2); }
+.agd-search__group-title {
+  padding: var(--agd-space-2) var(--agd-space-3);
+  color: var(--agd-color-text-muted);
+  font-size: var(--agd-font-size-xs);
+  font-weight: var(--agd-font-weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.agd-search__option {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: var(--agd-space-3);
+  padding: var(--agd-space-2) var(--agd-space-3);
+  border-radius: var(--agd-radius-md);
+  cursor: pointer;
+}
+.agd-search__option[data-active="true"] { background: var(--agd-color-accent-subtle); outline: 2px solid var(--agd-color-focus); outline-offset: -2px; }
+.agd-search__icon { grid-row: span 2; align-self: center; width: 1.25rem; height: 1.25rem; color: var(--agd-color-text-muted); }
+.agd-search__title { overflow: hidden; font-weight: var(--agd-font-weight-medium); text-overflow: ellipsis; white-space: nowrap; }
+.agd-search__snippet {
+  grid-column: 2;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: var(--agd-color-text-muted);
+  font-size: var(--agd-font-size-sm);
+}
+.agd-search__mark { background: transparent; color: var(--agd-color-text); font-weight: var(--agd-font-weight-semibold); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 2px; }
+.agd-search__error { display: flex; flex-wrap: wrap; align-items: center; gap: var(--agd-space-3); padding: var(--agd-space-3); color: var(--agd-color-danger-text); }
+.agd-search__error p { flex: 1 1 12rem; margin: 0; }
+.agd-search__skeleton { display: grid; gap: var(--agd-space-3); padding: var(--agd-space-3); }
+@media (forced-colors: active) {
+  .agd-search__option[data-active="true"] { background: Highlight; color: HighlightText; }
+  .agd-search__mark { background: transparent; color: inherit; }
+}

@@ -1,10 +1,14 @@
 {
-  // Public demo. It has no database and no secrets, and it does not set
-  // SEARCH_UNSAFE_NO_AUTH, so every /api/v1 call except health answers 500.
+  // Public demo. It serves the demo page and a read-only search API over sample items in memory.
+  // It has no database and no secrets, and it accepts any caller as one fixed demo person.
+  // Every route except search and health answers 404. `npm run build` makes demo-dist first.
   "name": "agentic-search-demo",
-  "main": "src/worker.ts",
+  "main": "src/demo.ts",
   "compatibility_date": "2026-01-01",
+  // The root of agentic-identity imports node:module for its version string.
+  "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
+  "assets": { "directory": "./demo-dist", "binding": "ASSETS", "run_worker_first": ["/api/*"] },
   "vars": {
     "SEARCH_NAME": "agentic-search-demo"
   }
