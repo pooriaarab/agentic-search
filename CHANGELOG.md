@@ -2,10 +2,11 @@
 
 ## 0.6.1
 
-Patch. No change to the SDK, the HTTP API, or the MCP tools.
+Patch. No change to the SDK, the HTTP API, or the MCP tools. One exit code changes: see the stray-word bullet.
 
 - `agentic-search-mcp mcp --version` prints the version and exits 0. Before, the `mcp` word made the flag an unknown flag, and the command exited 2.
 - `agentic-search-mcp --help` and `agentic-search-mcp mcp --help` print the bin's own usage, under `agentic-search-mcp`. It lists only the flags the bin reads. Before, they printed the CLI usage under `agentic-search`.
+- A stray word after `mcp` exits 2 with a usage error, on both bins: `agentic-search-mcp extra` and `agentic-search mcp extra`. Before, the word was ignored and the server started. An MCP client config that passes an extra word must drop it.
 
 ## 0.6.0
 

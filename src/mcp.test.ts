@@ -115,11 +115,11 @@ test("the built bin files run: cli prints the version, mcp-bin starts and needs 
 
 test("agentic-search-mcp answers help and version under its own name, with or without the mcp word", () => {
   const run = (args: string[]) => spawnSync(process.execPath, ["dist-test/mcp-bin.js", ...args], { encoding: "utf8", timeout: 20_000 });
-  for (const argv of [["--version"], ["-V"], ["mcp", "--version"], ["mcp", "-V"]]) {
+  for (const argv of [["--version"], ["-V"], ["mcp", "--version"], ["mcp", "-V"], ["--as", "u1", "--kind", "human", "--version"]]) {
     const r = run(argv);
     expect([argv, r.status, r.stderr, r.stdout.trim()]).toEqual([argv, 0, "", VERSION]);
   }
-  for (const argv of [["--help"], ["-h"], ["mcp", "--help"], ["mcp", "-h"]]) {
+  for (const argv of [["--help"], ["-h"], ["mcp", "--help"], ["mcp", "-h"], ["--as", "u1", "--kind", "human", "--help"]]) {
     const r = run(argv);
     expect([argv, r.status, r.stderr]).toEqual([argv, 0, ""]);
     expect(r.stdout.split("\n")[0]).toBe(`agentic-search-mcp ${VERSION}`);
