@@ -31,8 +31,8 @@ First release.
 
 ### Known limits
 
-- The default Worker has no real authentication. It refuses `/api/v1` calls
-  unless `SEARCH_UNSAFE_NO_AUTH=1` is set. For real use, call
+- The default Worker has no real authentication. It refuses every `/api/v1`
+  call except health unless `SEARCH_UNSAFE_NO_AUTH=1` is set. For real use, call
   `createWorker({ verifier })` from `agentic-search/worker` with your own
   `AuthVerifier`.
 - The memory index scans every item on each query. Use it for tests and small

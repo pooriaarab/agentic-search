@@ -62,7 +62,7 @@ const page = await search.search(me, { query: "budget", kinds: ["document"], lim
 
 **Warning:** the default Worker export has no authentication. It refuses every `/api/v1` call (except health) unless you set `SEARCH_UNSAFE_NO_AUTH=1`. With that flag it trusts the headers `x-principal-id`, `x-principal-kind` and `x-principal-acting-for`. Use it for local trials only. For real use, call `createWorker({ verifier })` and pass your own `AuthVerifier`. Import it with `import { createWorker } from "agentic-search/worker"`. A verifier returns the principal, or `null` for no access. A throw also means no access.
 
-Bindings: `DB` (D1, run `migrations/0001_init.sql`), `SEARCH_CURSOR_SECRET` (32 bytes or more).
+Bindings: `DB` (D1, run `D1Index.migrate(env.DB)` once, or apply `migrations/0001_init.sql` from the repo), `SEARCH_CURSOR_SECRET` (32 bytes or more).
 
 | Call | Does |
 |---|---|
