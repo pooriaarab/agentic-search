@@ -10,7 +10,7 @@ Minor. Breaking for the default Worker export; see the first item.
 - The MCP SDK floor is `^1.23.0` (#49), the first release that accepts zod 4 schemas.
 - `agentic-identity` is `^0.7.0` (#40). The lockfile follows.
 - `agentic-search mcp --version` prints the version and exits 0, like `--help` (#41). Before, the flag failed as an unknown flag and exited 2.
-- A missing principal names the missing flags and the `AGENTIC_SEARCH_AS` and `AGENTIC_SEARCH_KIND` variables (#41). The MCP server exits non-zero.
+- A missing principal names the missing flags and the `AGENTIC_SEARCH_AS` and `AGENTIC_SEARCH_KIND` variables (#41). The exit code is still non-zero.
 - The publish workflow runs one publish at a time per ref (#43). A second run waits for the first. A running publish finishes.
 
 ## 0.4.0
