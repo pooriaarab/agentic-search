@@ -203,3 +203,4 @@ export function runIndexContract(name: string, make: () => Promise<ContractHarne
     });
   });
 }
+export { runVectorContract } from "./vector-contract.js";
