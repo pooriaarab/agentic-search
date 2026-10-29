@@ -6,7 +6,7 @@
 
 Search and indexing for documents, sheets, slides, files and comments, for people and agents. Ports and adapters, Cloudflare first.
 
-**Status:** version 0.0.0, early. The core library works: model, memory index, access filter, erase and export. The D1 adapter, Worker API, CLI and MCP tools come in later pull requests.
+**Status:** version 0.0.0, early. The core library works: model, memory index, access filter, erase and export. The D1 adapter works. The Worker API, CLI and MCP tools come in later pull requests.
 
 ## Install
 
@@ -55,14 +55,16 @@ const page = await search.search(me, { query: "budget", kinds: ["document"], lim
 - **No counts.** A page has no total, because a total would leak hidden items.
 - **Principals.** Every call takes a principal with a required `kind`. Agent principals act for a subject.
 - **Privacy.** `eraseOwner` and `remove` delete data. `exportOwner` returns everything indexed for one owner. Logs hold counts only.
+- **D1.** `import { D1Index } from "agentic-search/d1"`. Run `D1Index.migrate(env.DB)` once, then pass `new D1Index(env.DB)` as `store`. Create the database with an EU location hint if you need EU residency.
 - **Testing your own store.** `agentic-search/testing` exports `runIndexContract` for adapters.
 
 ## Limits
 
 - The memory index scans every item per query. Use it for tests and small sets.
 - One search call scans at most 1000 store hits. When hidden items fill that window, the page can be short or empty and still carries `nextCursor`. Keep paging until it ends. A cursor on an empty page shows that the scan window held more matches, some of them maybe hidden from the caller. Treat it as a known signal until stores can filter by access.
-- BM25 statistics span the whole index, so ranking can depend on hidden items in a small way. Scores are never returned, and cursors are sealed.
-- No D1 adapter, HTTP API, CLI search commands or MCP tools yet.
+- The D1 adapter reads every posting in the range of the last query term. A very short last term is slow on a large index. An item may hold up to 500,000 characters, so keep an eye on D1 row and statement size limits.
+- Ranking uses no corpus statistics (no document frequency, no average length), so hidden items never change the order a caller sees. The price is less weight for rare words.
+- No HTTP API, CLI search commands or MCP tools yet.
 
 ## Develop
 
