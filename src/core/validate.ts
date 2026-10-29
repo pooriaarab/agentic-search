@@ -86,7 +86,7 @@ export function parseFilter(input: Record<string, unknown>): ItemFilter {
 
 /**
  * Kind and id come from agentic-identity, so every package checks them the same way.
- * This adds the subject rules that the kernel does not hold.
+ * This adds the subject rules that `agentic-identity` does not check.
  */
 export function parsePrincipal(input: unknown): Principal {
   let ref: { id: string; kind: Principal["kind"] };
