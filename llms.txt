@@ -6,7 +6,7 @@ Search for documents, sheets, slides, files and comments, filtered by what the c
 - MCP: npx agentic-search mcp (tools: search, index, remove, export_owner, erase_owner)
 - SDK: import { createSearch, MemoryIndex } from "agentic-search". Subpaths: "agentic-search/d1", "agentic-search/worker", "agentic-search/client" (typed HTTP client), "agentic-search/ui" (React SearchBox; import "agentic-search/ui.css" too), "agentic-search/testing". The README lists every runtime export under "SDK exports".
 - HTTP API: Worker under /api/v1 (search, items, owner export and erase)
-- UI: <SearchBox client={createClient({ baseUrl, token })} onSelect={fn} /> from "agentic-search/ui". Keys: / or Ctrl+K focus, arrows move, Enter picks, Escape closes then clears. Props: debounceMs, limit, kinds, shortcut, labels. Uses agentic-design agd- classes. React is an optional peer.
+- UI: const client = createClient({ baseUrl, token }) (create it once, outside render); <SearchBox client={client} onSelect={fn} /> from "agentic-search/ui". Keys: / or Ctrl+K focus, arrows move, Enter picks, Escape closes then clears. Props: debounceMs, limit, kinds, shortcut, labels. Uses agentic-design agd- classes. React is an optional peer.
 - Principal is required: --as, --kind (no default kind)
 
 ## Docs

@@ -55,7 +55,7 @@ export default {
     const path = new URL(request.url).pathname.replace(/\/+$/, "");
     if (path.startsWith("/api/")) {
       const open =
-        (request.method === "GET" && (path === "/api/v1/health" || path === "/api/health")) ||
+        (request.method === "GET" && path === "/api/v1/health") ||
         (request.method === "POST" && path === "/api/v1/search");
       if (!open) return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: { "content-type": "application/json" } });
       return api.fetch(request, env);

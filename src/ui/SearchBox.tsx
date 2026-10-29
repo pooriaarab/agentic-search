@@ -79,6 +79,8 @@ export function SearchBox({ client, onSelect, debounceMs = 200, limit = 20, kind
   const [active, setActive] = useState(-1);
   const [attempt, setAttempt] = useState(0);
   const kindsKey = kinds?.join(",") ?? "";
+  // Results belong to one client, one kind filter and one page size. When any changes, drop them.
+  const scope = useRef({ client, kindsKey, limit });
 
   // The global shortcut.
   useEffect(() => {
@@ -106,6 +108,12 @@ export function SearchBox({ client, onSelect, debounceMs = 200, limit = 20, kind
       return;
     }
     const controller = new AbortController();
+    const changed = scope.current.client !== client || scope.current.kindsKey !== kindsKey || scope.current.limit !== limit;
+    scope.current = { client, kindsKey, limit };
+    if (changed) {
+      setState({ status: "loading", hits: [] });
+      setActive(-1);
+    }
     const timer = setTimeout(() => {
       setState((prev) => ({ status: "loading", hits: prev.status === "ready" || prev.status === "loading" ? prev.hits : [] }));
       const request: SearchRequest = { query: trimmed, limit, ...(kindsKey === "" ? {} : { kinds: kindsKey.split(",") as ItemKind[] }) };
@@ -183,8 +191,8 @@ export function SearchBox({ client, onSelect, debounceMs = 200, limit = 20, kind
     }
   };
 
-  const announcement =
-    state.status === "loading" ? text.loading : state.status === "error" ? text.error : state.status === "ready" ? (flat.length === 0 ? text.empty : text.results(flat.length)) : "";
+  // The error box is an alert, so the polite region stays quiet then. It does not announce loading.
+  const announcement = state.status === "ready" ? (flat.length === 0 ? text.empty : text.results(flat.length)) : "";
 
   let index = -1;
   return (
@@ -215,6 +223,8 @@ export function SearchBox({ client, onSelect, debounceMs = 200, limit = 20, kind
           value={query}
           onChange={(event) => {
             setQuery(event.target.value);
+            // The old results stay up while the new query waits, so Enter must not pick one of them.
+            setActive(-1);
             setOpen(true);
           }}
           onFocus={() => setOpen(true)}

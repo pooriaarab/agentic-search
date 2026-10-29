@@ -157,7 +157,8 @@ const client = createClient({ baseUrl: "https://search.example.com", token });
 <SearchBox client={client} onSelect={(hit) => open(hit.resource)} />;
 ```
 
-- Press `/` or Ctrl+K (Cmd+K on a Mac) to focus the field. A `/` typed in a text field stays text. Set `shortcut={false}` to turn the keys off.
+- Create the client once, outside render or with `useMemo`. A new client makes the box search again.
+- Press `/` or Ctrl+K (Cmd+K on a Mac) to focus the field. Ctrl+K works from any field, so it takes the key from an editor on the same page. A `/` typed in a text field stays text. Set `shortcut={false}` to turn the keys off.
 - A query goes out `debounceMs` (200) after the last key. A newer query cancels the one in flight, so an old answer never replaces a new one.
 - Results show in groups: documents, sheets, slides, files, comments. The field keeps focus. Arrow Down and Arrow Up move through the results, Enter picks one, and Escape closes the panel and then clears the field.
 - A failed call shows an error with a Try again button. It never shows as "no results". No match shows an empty state.

@@ -30,7 +30,6 @@
   background: var(--agd-color-surface-raised);
   box-shadow: var(--agd-shadow-floating);
 }
-.agd-search__panel[aria-busy="true"] [role="listbox"] { opacity: 0.6; }
 .agd-search__group + .agd-search__group { margin-top: var(--agd-space-2); }
 .agd-search__group-title {
   padding: var(--agd-space-2) var(--agd-space-3);

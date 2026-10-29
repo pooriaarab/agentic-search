@@ -13,7 +13,8 @@ async function audit(page: Page, name: string) {
     await page.evaluate((t) => document.documentElement.setAttribute("data-theme", t), theme);
     const result = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze();
     expect(result.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(" | ")}`), `${name} (${theme})`).toEqual([]);
-    await page.screenshot({ path: `${SHOTS}/${name}-${theme}.png` });
+    // Set SHOTS=1 to refresh the committed screenshots.
+    if (process.env.SHOTS === "1") await page.screenshot({ path: `${SHOTS}/${name}-${theme}.png` });
   }
   await page.evaluate(() => document.documentElement.removeAttribute("data-theme"));
 }
