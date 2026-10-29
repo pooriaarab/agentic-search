@@ -1,3 +1,5 @@
+import { requirePrincipal, type RequirePrincipalOptions } from "agentic-identity/http";
+import type { Auth, PrincipalContext } from "agentic-identity";
 import { createSearch, type SearchService } from "./core/service.js";
 import { ForbiddenError, ValidationError } from "./core/errors.js";
 import { D1Index, type D1Like } from "./adapters/d1.js";
@@ -19,10 +21,23 @@ export interface WorkerEnv {
   SEARCH_CURSOR_SECRET?: string;
   /** Set to "1" to trust principal headers. For local trials only: it has no authentication. */
   SEARCH_UNSAFE_NO_AUTH?: string;
+  /** Set to "production" to make the header-trust dev mode refuse, even with the flag set. */
+  SEARCH_ENV?: string;
 }
 
+/** The bearer-token verifier, or a function that builds it for one request environment. */
+export type AuthSource = Auth | ((env: WorkerEnv) => Auth | Promise<Auth>);
+
 export interface WorkerOptions {
-  verifier: AuthVerifier;
+  /**
+   * Verifies bearer tokens with `agentic-identity/http`. A missing or bad token is a 401. The principal
+   * comes from the verified token and never from request headers. Give `auth` or `verifier`, not both.
+   */
+  auth?: AuthSource;
+  /** Extra checks for `auth`: `kinds`, `scope` and `origins`. A token that falls short gets a 403. */
+  require?: RequirePrincipalOptions;
+  /** Custom verification. Give `auth` or `verifier`, not both. */
+  verifier?: AuthVerifier;
   /** Build the service for one request environment. Defaults to D1 from `env.DB`. */
   service?: (env: WorkerEnv) => Promise<SearchService>;
   logger?: Logger;
@@ -67,8 +82,25 @@ async function readJson(request: Request): Promise<unknown> {
 
 const serviceCache = new WeakMap<object, Promise<SearchService>>();
 
-/** Build a Worker handler around an injected verifier. */
+/**
+ * Map a verified token to a search principal. The subject is the root of the chain, so an agent
+ * reads what the person it acts for may read. A `human` or `agent` carries no `actingFor`.
+ */
+export function principalFromContext(context: PrincipalContext): Principal {
+  const root = context.chain[0];
+  const principal: Principal = { id: context.principalId, kind: context.kind };
+  if (context.kind !== "human" && context.kind !== "agent") {
+    if (root === undefined) throw new Error("the principal chain is empty");
+    principal.actingFor = root.id;
+  }
+  return principal;
+}
+
+/** Build a Worker handler around `auth` (verified bearer tokens) or an injected verifier. */
 export function createWorker(opts: WorkerOptions) {
+  if ((opts.auth === undefined) === (opts.verifier === undefined)) {
+    throw new Error("createWorker needs exactly one of `auth` or `verifier`");
+  }
   const log: Logger = opts.logger ?? { event() {} };
   const build =
     opts.service ??
@@ -92,10 +124,21 @@ export function createWorker(opts: WorkerOptions) {
     if (!path.startsWith("/api/v1/")) return fail(404, "not found");
 
     let principal: Principal | null = null;
-    try {
-      principal = await opts.verifier.verify(request, env);
-    } catch {
-      principal = null;
+    if (opts.auth !== undefined) {
+      try {
+        const auth = typeof opts.auth === "function" ? await opts.auth(env) : opts.auth;
+        const result = await requirePrincipal(request, auth, opts.require);
+        if (result instanceof Response) return result;
+        principal = principalFromContext(result);
+      } catch {
+        principal = null;
+      }
+    } else {
+      try {
+        principal = await opts.verifier!.verify(request, env);
+      } catch {
+        principal = null;
+      }
     }
     if (principal === null || typeof principal !== "object") return fail(401, "unauthenticated");
 
@@ -157,13 +200,14 @@ export function createWorker(opts: WorkerOptions) {
 }
 
 /**
- * Trial-only verifier: trusts `x-principal-id`, `x-principal-kind` and
+ * Dev-mode verifier: trusts `x-principal-id`, `x-principal-kind` and
  * `x-principal-acting-for`. Anyone can claim any identity, so it refuses to
- * work unless `SEARCH_UNSAFE_NO_AUTH=1` is set.
+ * work unless `SEARCH_UNSAFE_NO_AUTH=1` is set, and it always refuses when
+ * `SEARCH_ENV=production`.
  */
 const unsafeHeaderVerifier: AuthVerifier = {
   async verify(request, env) {
-    if (env.SEARCH_UNSAFE_NO_AUTH !== "1") return null;
+    if (env.SEARCH_UNSAFE_NO_AUTH !== "1" || env.SEARCH_ENV === "production") return null;
     const id = request.headers.get("x-principal-id");
     const kind = request.headers.get("x-principal-kind");
     if (id === null || kind === null) return null;

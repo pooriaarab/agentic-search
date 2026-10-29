@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The Worker verifies bearer tokens with `agentic-identity/http`. New option `createWorker({ auth, require })` answers 401 for a missing or bad token and 403 for a token of a refused kind or scope. The principal comes from the token, and `x-principal-*` headers are ignored. `verifier` still works, but you must give exactly one of `auth` or `verifier`. The header-trust dev mode (`SEARCH_UNSAFE_NO_AUTH=1`) now also refuses when `SEARCH_ENV=production`.
+
 ## 0.3.1
 
 - The MCP bin prints its version for `agentic-search-mcp --version` and `-V`, and exits 0. Before, the flag reached `mcp` and failed as an unknown flag. Only a first argument counts, as in the CLI.

@@ -96,12 +96,14 @@ The package also exports types for each shape, such as `IndexedItem`, `Principal
 Subpath exports:
 
 - `agentic-search/d1`: `D1Index` and `D1_SCHEMA`. Types: `D1Like`, `D1StatementLike` and `D1ResultLike`.
-- `agentic-search/worker`: `createWorker`, the Worker factory. The default export is the unsafe trial Worker. It needs `SEARCH_UNSAFE_NO_AUTH=1`. Without it, every `/api/v1` call except health answers 401. Types: `AuthVerifier`, `WorkerEnv` and `WorkerOptions`.
+- `agentic-search/worker`: `createWorker`, the Worker factory. Pass `auth` to verify bearer tokens with `agentic-identity`. The default export is a dev-mode Worker. It needs `SEARCH_UNSAFE_NO_AUTH=1`. Without it, every `/api/v1` call except health answers 401. Types: `AuthVerifier`, `AuthSource`, `WorkerEnv` and `WorkerOptions`.
 - `agentic-search/testing`: `runIndexContract`, `runVectorContract`, `item` and the `ContractHarness` type (see How it works).
 
 ## HTTP API
 
-**Warning:** the default Worker export has no authentication. It refuses every `/api/v1` call (except health) unless you set `SEARCH_UNSAFE_NO_AUTH=1`. With that flag it trusts the headers `x-principal-id`, `x-principal-kind` and `x-principal-acting-for`. Use it for local trials only. For real use, call `createWorker({ verifier })` and pass your own `AuthVerifier`. A verifier returns the principal, or `null` for no access. A throw also means no access.
+**Authentication.** Call `createWorker({ auth })` with an `Auth` from `agentic-identity` (or a function that builds one from `env`). The Worker checks the `Authorization: Bearer` token with `agentic-identity/http`. A missing, bad, expired or revoked token answers 401. Use `require: { kinds, scope }` to refuse some tokens with 403. The principal comes from the verified token. For an agent, `actingFor` is the root of its chain. The Worker ignores every `x-principal-*` header in this mode. Give `auth` or `verifier`, not both.
+
+**Warning:** the default Worker export has no real authentication. It refuses every `/api/v1` call (except health) unless you set `SEARCH_UNSAFE_NO_AUTH=1`. With that flag it trusts the headers `x-principal-id`, `x-principal-kind` and `x-principal-acting-for`. Use it for local trials only. It fails closed when `SEARCH_ENV=production`: set that var in every production deploy. For real use, call `createWorker({ auth })`. You can also pass your own `verifier`: it returns the principal, or `null` for no access. A throw also means no access.
 
 Bindings: `DB` (D1, run `migrations/0001_init.sql`), `SEARCH_CURSOR_SECRET` (32 bytes or more).
 
