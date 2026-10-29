@@ -5,8 +5,7 @@
   "version": "0.0.0",
   "repository": {
     "url": "https://github.com/pooriaarab/agentic-search",
-    "source": "github",
-    "id": 0
+    "source": "github"
   },
   "packages": [
     {

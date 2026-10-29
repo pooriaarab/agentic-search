@@ -14,7 +14,7 @@ Search and indexing for documents, sheets, slides, files and comments, for peopl
 npm install agentic-search
 ```
 
-Requires Node.js 18 or later.
+Requires Node.js 20 or later.
 
 ## What works now
 
