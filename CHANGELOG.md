@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.2
+
+Patch. No change to the SDK, CLI, MCP or HTTP shape.
+
+- `agentic-identity` (dependency) moves from `^0.8.0` to `^0.9.0`.
+- `agentic-design` (dependency) moves from `^0.5.0` to `^0.6.0`. Version 0.6.0 changes the `Tabs` focus order to a roving tab index. This package's `SearchBox` does not use `Tabs`, so the change does not reach it.
+- The lockfile follows both bumps and now lists the optional `react` and `react-dom` peers that `package.json` already declares. Build, typecheck, unit tests, and browser tests pass with `agentic-identity` 0.9.0 and `agentic-design` 0.6.0.
+
 ## 0.6.1
 
 Patch. No change to the SDK, the HTTP API, or the MCP tools. One exit code changes: see the stray-word bullet.
