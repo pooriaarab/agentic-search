@@ -64,6 +64,10 @@ test("the built bin files run: cli prints the version, mcp-bin starts and needs 
   const run = (file: string, args: string[]) => spawnSync(process.execPath, [file, ...args], { encoding: "utf8", timeout: 20_000 });
   const v = run("dist-test/cli.js", ["--version"]);
   expect(v.stdout.trim()).toBe(VERSION);
+  const binVersion = run("dist-test/mcp-bin.js", ["--version"]);
+  expect(binVersion.status).toBe(0);
+  expect(binVersion.stdout.trim()).toBe(VERSION);
+  expect(binVersion.stderr).not.toContain("unknown flag");
   const noPrincipal = run("dist-test/mcp-bin.js", ["--data", join(dir, "x")]);
   expect(noPrincipal.status).toBe(2);
   expect(noPrincipal.stderr).toContain("principal");
