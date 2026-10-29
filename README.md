@@ -77,27 +77,27 @@ The principal is required, and there is no default kind. The CLI and MCP keep a 
 | Name | What it is |
 |---|---|
 | `VERSION` | The package version. |
-| `createSearch(opts)` | Make the search service. Pass a `store`, a `cursorSecret` and, optionally, `access`, `logger` and `vectors`. |
+| `createSearch(opts)` | Make the search service. Pass a `store` and a `cursorSecret`. Optional: `access`, `logger`, `maxScan`, `now` and `vectors`. |
 | `noopLogger` | The default logger. It drops every event. |
 | `MemoryIndex` | The in-memory store. It is for tests and small sets. |
 | `MemoryVectorStore` | The in-memory vector store. It is the reference for `VectorStore`. |
 | `reciprocalRankFusion(k?)` | The default hybrid ranker. Pass your own as the `rank` hook. |
-| `ownerPolicy` | The default access policy. A principal reads only what its subject owns. |
+| `ownerPolicy` | The default access policy. A principal reads, writes and manages only what its subject owns. |
 | `subjectOf(principal)` | The subject a principal acts for. Use it when you write an `AccessPolicy`. |
 | `parseItem(input)`, `parsePrincipal(input)` | Check input and return a typed item or principal. They throw `ValidationError`. |
 | `LIMITS` | The size limits that the checks use. |
 | `ValidationError` | Thrown for bad input. |
-| `ForbiddenError` | Thrown when the access policy denies a write. |
+| `ForbiddenError` | Thrown when the access policy denies a write, or an erase, export or reindex for an owner. |
 | `ITEM_KINDS`, `PRINCIPAL_KINDS` | The allowed item kinds and principal kinds. |
-| `tokenize(text)`, `queryTerms(query)` | Split text into the terms that the index uses. |
+| `tokenize(text)`, `queryTerms(query)` | `tokenize` returns each term with its start and end offsets. `queryTerms` returns the unique terms of a query. |
 
 The package also exports types for each shape, such as `IndexedItem`, `Principal`, `SearchRequest`, `SearchPage`, `AccessPolicy`, `IndexStore`, `Embedder` and `VectorStore`.
 
 Subpath exports:
 
-- `agentic-search/d1`: `D1Index` and `D1_SCHEMA`.
-- `agentic-search/worker`: `createWorker`, the Worker factory. The default export is the unsafe trial Worker.
-- `agentic-search/testing`: the contract suites and fixtures (see How it works).
+- `agentic-search/d1`: `D1Index` and `D1_SCHEMA`. Types: `D1Like`, `D1StatementLike` and `D1ResultLike`.
+- `agentic-search/worker`: `createWorker`, the Worker factory. The default export is the unsafe trial Worker. Types: `AuthVerifier`, `WorkerEnv` and `WorkerOptions`.
+- `agentic-search/testing`: `runIndexContract`, `runVectorContract`, `item` and the `ContractHarness` type (see How it works).
 
 ## HTTP API
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Breaking: `normalizeToken` is no longer exported from `agentic-search`. It was internal. Use `tokenize(text)`, whose tokens hold a `term`, or `queryTerms(query)`.
+- Document every SDK export in the README and llms.txt.
+
 ## 0.1.0
 
 First release.
