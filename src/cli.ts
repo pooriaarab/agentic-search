@@ -58,19 +58,26 @@ interface Parsed {
   positional: string[];
   flags: Map<string, string[]>;
   json: boolean;
+  help?: boolean;
 }
 
 function parseArgs(argv: string[]): Parsed {
   const out: Parsed = { positional: [], flags: new Map(), json: false };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i] as string;
-    if (!arg.startsWith("--") || arg === "--") {
+    if (arg === "--") {
+      out.positional.push(...argv.slice(i + 1));
+      break;
+    }
+    if (!arg.startsWith("--")) {
       out.positional.push(arg);
       continue;
     }
     const eq = arg.indexOf("=");
     const name = arg.slice(2, eq === -1 ? undefined : eq);
-    if (name === "json") {
+    if (name === "help") {
+      out.help = true;
+    } else if (name === "json") {
       out.json = true;
     } else if (VALUE_FLAGS.has(name)) {
       const value = eq === -1 ? argv[++i] : arg.slice(eq + 1);
@@ -104,10 +111,12 @@ function principalOf(p: Parsed): Principal {
   return parsePrincipal({ id, kind, ...(actingFor === undefined ? {} : { actingFor }) });
 }
 
+/** One argument after the command. `search` joins every word into one query. */
 function need(p: Parsed, what: string): string {
-  const v = p.positional[1];
-  if (v === undefined) throw new ValidationError(`${what} is required`);
-  return v;
+  const rest = p.positional.slice(1);
+  if (rest.length === 0) throw new ValidationError(`${what} is required`);
+  if (rest.length > 1 && what !== "query") throw new ValidationError(`give one ${what}`);
+  return rest.join(" ");
 }
 
 async function readInput(path: string): Promise<unknown> {
@@ -132,6 +141,9 @@ async function command(first: string, p: Parsed, io: CliIo): Promise<number> {
   switch (first) {
     case "search": {
       const resourceType = one(p, "resource-type");
+      if (resourceType === undefined && one(p, "resource-id") !== undefined) {
+        throw new ValidationError("--resource-id needs --resource-type");
+      }
       const request: SearchRequest = {
         query: need(p, "query"),
         kinds: p.flags.get("item-kind") as ItemKind[] | undefined,
@@ -164,9 +176,7 @@ async function command(first: string, p: Parsed, io: CliIo): Promise<number> {
       print(await svc.eraseOwner(principal, need(p, "owner")));
       return 0;
   }
-  io.err(`unknown command "${first}"`);
-  io.err('Run "agentic-search --help" for usage.');
-  return 2;
+  throw new ValidationError(`unknown command "${first}"`);
 }
 
 const COMMANDS = new Set(["search", "index", "remove", "export", "erase", "mcp"]);
@@ -187,7 +197,12 @@ export async function runCli(argv: string[], io: CliIo = defaultIo): Promise<num
     return 2;
   }
   try {
-    return await command(first, parseArgs(argv), io);
+    const parsed = parseArgs(argv);
+    if (parsed.help) {
+      io.out(HELP);
+      return 0;
+    }
+    return await command(first, parsed, io);
   } catch (error) {
     if (error instanceof ValidationError) io.err(error.message);
     else if (error instanceof ForbiddenError) io.err("not allowed");

@@ -90,6 +90,21 @@ test("bad flags and bad input are usage errors", async () => {
   expect((await run(["search", "x", "--bogus", "1"])).code).toBe(2);
   expect((await run(["search", "x", "--limit", "abc"])).code).toBe(2);
   expect((await run(["search"])).code).toBe(2);
+  expect((await run(["search", "x", "--resource-id", "r1"])).code).toBe(2);
+  expect((await run(["remove", "a", "b"])).code).toBe(2);
+  expect((await run(["search", "--help"])).code).toBe(0);
   writeFileSync(join(dir, "bad.json"), "{");
   expect((await run(["index", join(dir, "bad.json")])).code).toBe(2);
+});
+
+test("a query of several words searches all of them; -- ends flags", async () => {
+  const file = join(dir, "multi.json");
+  writeFileSync(file, JSON.stringify([doc("m1", "u1", "quarterly budget"), doc("m2", "u1", "quarterly notes")]));
+  await run(["index", file]);
+  const r = await run(["search", "quarterly", "budget", "--json"]);
+  expect(JSON.parse(r.out).hits.map((h: { id: string }) => h.id)).toEqual(["m1"]);
+  const c = capture();
+  await runCli(["search", "--data", join(dir, "d"), "--as", "u1", "--kind", "human", "--json", "--", "--quarterly"], c.io);
+  // After "--" the word is a query, not an unknown flag.
+  expect(JSON.parse(c.out.join("")).hits).toHaveLength(2);
 });
