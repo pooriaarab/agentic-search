@@ -354,3 +354,31 @@ describe("logs", () => {
     for (const needle of ["zebra", "alice", "id-zebra"]) expect(wire).not.toContain(needle);
   });
 });
+
+describe("snippet cuts", () => {
+  test("never split a grapheme", async () => {
+    const family = "👨‍👩‍👧‍👦";
+    const accent = "e\u0301";
+    const cases = [
+      "word" + "x".repeat(155) + family + "tail",
+      "word" + "x".repeat(159) + accent + "tail",
+      "x".repeat(300) + family.repeat(3) + " word " + "y".repeat(200) + accent.repeat(40),
+      "🇩🇪".repeat(100) + ".word." + "🇩🇪".repeat(100),
+      "a".repeat(50) + "🇩🇪".repeat(100) + ".word." + "🇩🇪".repeat(100),
+      "a".repeat(51) + "🇩🇪".repeat(100) + ".word." + "🇩🇪".repeat(100),
+      "z".repeat(120) + accent + "word" + "y".repeat(100) + family.repeat(30),
+    ];
+    for (const text of cases) {
+      const { makeSnippet } = await import("./snippet.js");
+      const out = makeSnippet(text, ["word"]).text;
+      expect(/[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/.test(out)).toBe(false);
+      const body = out.replace(/^…/, "").replace(/…$/, "");
+      const from = text.indexOf(body);
+      expect(from).toBeGreaterThanOrEqual(0);
+      const cuts = new Set<number>([text.length]);
+      for (const seg of new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(text)) cuts.add(seg.index);
+      expect(cuts.has(from)).toBe(true);
+      expect(cuts.has(from + body.length)).toBe(true);
+    }
+  });
+});

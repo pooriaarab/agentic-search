@@ -6,7 +6,7 @@
 
 Search and indexing for documents, sheets, slides, files and comments, for people and agents. Ports and adapters, Cloudflare first.
 
-**Status:** version 0.0.0, early. The core library works: model, memory index, access filter, erase and export. The D1 adapter works. The Worker API, CLI and MCP tools come in later pull requests.
+**Status:** version 0.0.0, early. The core library works: model, memory index, access filter, erase and export. The D1 adapter and the Worker API work. The CLI and MCP tools come in later pull requests.
 
 ## Install
 
@@ -58,13 +58,31 @@ const page = await search.search(me, { query: "budget", kinds: ["document"], lim
 - **D1.** `import { D1Index } from "agentic-search/d1"`. Run `D1Index.migrate(env.DB)` once, then pass `new D1Index(env.DB)` as `store`. Create the database with an EU location hint if you need EU residency.
 - **Testing your own store.** `agentic-search/testing` exports `runIndexContract` for adapters.
 
+## HTTP API
+
+**Warning:** the default Worker export has no authentication. It refuses every `/api/v1` call (except health) unless you set `SEARCH_UNSAFE_NO_AUTH=1`. With that flag it trusts the headers `x-principal-id`, `x-principal-kind` and `x-principal-acting-for`. Use it for local trials only. For real use, call `createWorker({ verifier })` and pass your own `AuthVerifier`. A verifier returns the principal, or `null` for no access. A throw also means no access.
+
+Bindings: `DB` (D1, run `migrations/0001_init.sql`), `SEARCH_CURSOR_SECRET` (32 bytes or more).
+
+| Call | Does |
+|---|---|
+| `GET /api/v1/health` | Name and version. No auth. |
+| `POST /api/v1/search` | Body: a search request. Returns a page. |
+| `POST /api/v1/items` | Body: one item or `{ "items": [...] }`. |
+| `DELETE /api/v1/items/:id` | Remove one item. |
+| `GET /api/v1/owners/:owner/export` | Export everything one owner has indexed. |
+| `DELETE /api/v1/owners/:owner` | Erase everything one owner has indexed. |
+
+Errors: 400 bad input, 401 no principal, 403 not allowed, 413 and 415 bad body, 500 internal (no details).
+
 ## Limits
 
 - The memory index scans every item per query. Use it for tests and small sets.
 - One search call scans at most 1000 store hits. When hidden items fill that window, the page can be short or empty and still carries `nextCursor`. Keep paging until it ends. A cursor on an empty page shows that the scan window held more matches, some of them maybe hidden from the caller. Treat it as a known signal until stores can filter by access.
 - The D1 adapter reads every posting in the range of the last query term. A very short last term is slow on a large index. An item may hold up to 500,000 characters, so keep an eye on D1 row and statement size limits.
 - Ranking uses no corpus statistics (no document frequency, no average length), so hidden items never change the order a caller sees. The price is less weight for rare words.
-- No HTTP API, CLI search commands or MCP tools yet.
+- No CLI search commands or MCP tools yet.
+- The default Worker has no real authentication. See HTTP API.
 
 ## Develop
 
