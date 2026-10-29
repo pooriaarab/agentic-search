@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.3
+
+Patch. No change to the SDK, CLI, MCP or HTTP shape.
+
+- `agentic-design` (dependency) moves from `^0.6.0` to `^0.8.0`. The range now accepts the newest `agentic-design` on npm, so all `agentic-*` packages install together without an ERESOLVE error.
+- Versions 0.7.0 and 0.8.0 do not change the components this package uses (`Button`, `EmptyState`, `AlertIcon`, `CloseIcon`, `FileIcon`, and the `agd-` classes). No source change is needed. Build, typecheck, unit tests, and browser tests (axe, light and dark, 390px) pass with `agentic-design` 0.8.0.
+- The lockfile follows the bump.
+
 ## 0.6.2
 
 Patch. No change to the SDK, CLI, MCP or HTTP shape.
