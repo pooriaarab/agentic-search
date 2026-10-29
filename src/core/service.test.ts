@@ -28,13 +28,15 @@ const secret = (id: string, owner: string, text = "confidential merger plan"): I
   item(id, { owner, title: `Secret ${id}`, text });
 
 /**
- * A sealed cursor is a random 12-byte IV, then AES-GCM ciphertext. The bytes after the IV
- * are not JSON (a plain payload would be), and no hidden item id appears in the cursor.
+ * A sealed cursor is a random 12-byte IV, then AES-GCM ciphertext. A plain payload would show
+ * its keys ("s", "i", "q") and parse as JSON after the IV. No hidden item id may appear either.
  */
 function expectSealed(cursor: string, hiddenIds: string[]): void {
   const bytes = Buffer.from(cursor, "base64url");
+  const text = bytes.toString("latin1");
+  expect(text).not.toMatch(/"[siq]":/);
   expect(() => JSON.parse(bytes.subarray(12).toString("utf8"))).toThrow();
-  for (const id of hiddenIds) expect(bytes.toString("latin1")).not.toContain(id);
+  for (const id of hiddenIds) expect(text).not.toContain(id);
 }
 
 describe("access filter", () => {
