@@ -325,6 +325,17 @@ describe("verified bearer tokens", () => {
     expect((await send("POST", "/items")).status).toBe(403);
     expect((await send("DELETE", "/items/x")).status).toBe(403);
     expect((await send("DELETE", "/owners/alice")).status).toBe(403);
+    // Encoded segments decode to the same routes, so they need the same scopes.
+    for (const [m, path] of [
+      ["POST", "/%69tems"],
+      ["PUT", "/%69%74ems"],
+      ["DELETE", "/%69tems/x"],
+      ["DELETE", "/%6Fwners/alice"],
+      ["DELETE", "/%6fwners/alice"],
+    ] as const) {
+      expect((await send(m, path)).status, `${m} ${path}`).toBe(403);
+    }
+    expect((await send("POST", "/%zz")).status).toBe(400);
   });
 
   test("an auth builder that throws is a 500 and logs no detail", async () => {
@@ -376,7 +387,9 @@ describe("dev mode header trust", () => {
     }
   });
   test("works with the flag and SEARCH_ENV=development", async () => {
-    expect((await call({ SEARCH_UNSAFE_NO_AUTH: "1", SEARCH_ENV: "development" })).status).not.toBe(401);
+    // No DB is bound, so a passed sign-in ends at the missing binding (500), never at 401.
+    // The D1 tests above run the full header path and check the data.
+    expect((await call({ SEARCH_UNSAFE_NO_AUTH: "1", SEARCH_ENV: "development" })).status).toBe(500);
   });
   test("is off without the flag", async () => {
     expect((await call({})).status).toBe(401);

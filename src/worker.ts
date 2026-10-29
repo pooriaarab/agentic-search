@@ -100,8 +100,7 @@ function principalFromContext(context: PrincipalContext): Principal {
 }
 
 /** The scope a token needs for one route. Search and export read. Index and remove write. Erase is admin. */
-function scopeFor(method: string, path: string): string {
-  const parts = path.slice("/api/v1/".length).split("/");
+function scopeFor(method: string, parts: string[]): string {
   if (parts[0] === "items" && (method === "POST" || method === "PUT" || method === "DELETE")) return "search:write";
   if (parts[0] === "owners" && method === "DELETE") return "search:admin";
   return "search:read";
@@ -136,6 +135,13 @@ export function createWorker(opts: WorkerOptions) {
     }
     if (!path.startsWith("/api/v1/")) return fail(404, "not found");
 
+    let parts: string[];
+    try {
+      parts = path.slice("/api/v1/".length).split("/").map(decodeURIComponent);
+    } catch {
+      return fail(400, "path is not valid percent-encoding");
+    }
+
     let principal: Principal | null = null;
     if (opts.auth !== undefined) {
       try {
@@ -152,8 +158,12 @@ export function createWorker(opts: WorkerOptions) {
         } else {
           auth = source;
         }
-        const result = await requirePrincipal(request, auth, { ...opts.require, scope: scopeFor(method, path) });
-        if (result instanceof Response) return result;
+        const result = await requirePrincipal(request, auth, { ...opts.require, scope: scopeFor(method, parts) });
+        if (result instanceof Response) {
+          const headers = new Headers(result.headers);
+          headers.set("cache-control", "no-store");
+          return new Response(result.body, { status: result.status, headers });
+        }
         principal = principalFromContext(result);
       } catch {
         // A broken builder, option or mapping is a server fault, not a bad credential.
@@ -169,12 +179,6 @@ export function createWorker(opts: WorkerOptions) {
     }
     if (principal === null || typeof principal !== "object") return fail(401, "unauthenticated");
 
-    let parts: string[];
-    try {
-      parts = path.slice("/api/v1/".length).split("/").map(decodeURIComponent);
-    } catch {
-      return fail(400, "path is not valid percent-encoding");
-    }
     const [a, b, c] = parts;
     if (parts.length === 1 && a === "search" && method === "POST") {
       return json(await (await svc()).search(principal, (await readJson(request)) as never));
