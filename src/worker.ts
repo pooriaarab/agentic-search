@@ -21,7 +21,7 @@ export interface WorkerEnv {
   SEARCH_CURSOR_SECRET?: string;
   /** Set to "1" to trust principal headers. For local trials only: it has no authentication. */
   SEARCH_UNSAFE_NO_AUTH?: string;
-  /** Set to "production" to make the header-trust dev mode refuse, even with the flag set. */
+  /** The header-trust dev mode works only when this is exactly "development" or "test". Unset or any other value refuses. */
   SEARCH_ENV?: string;
 }
 
@@ -34,8 +34,11 @@ export interface WorkerOptions {
    * comes from the verified token and never from request headers. Give `auth` or `verifier`, not both.
    */
   auth?: AuthSource;
-  /** Extra checks for `auth`: `kinds`, `scope` and `origins`. A token that falls short gets a 403. */
-  require?: RequirePrincipalOptions;
+  /**
+   * Extra checks for `auth`: `kinds` and `origins`. A token that falls short gets a 403. The Worker
+   * sets the scope for each route itself: `search:read`, `search:write` or `search:admin`.
+   */
+  require?: Omit<RequirePrincipalOptions, "scope">;
   /** Custom verification. Give `auth` or `verifier`, not both. */
   verifier?: AuthVerifier;
   /** Build the service for one request environment. Defaults to D1 from `env.DB`. */
@@ -86,7 +89,7 @@ const serviceCache = new WeakMap<object, Promise<SearchService>>();
  * Map a verified token to a search principal. The subject is the root of the chain, so an agent
  * reads what the person it acts for may read. A `human` or `agent` carries no `actingFor`.
  */
-export function principalFromContext(context: PrincipalContext): Principal {
+function principalFromContext(context: PrincipalContext): Principal {
   const root = context.chain[0];
   const principal: Principal = { id: context.principalId, kind: context.kind };
   if (context.kind !== "human" && context.kind !== "agent") {
@@ -95,6 +98,16 @@ export function principalFromContext(context: PrincipalContext): Principal {
   }
   return principal;
 }
+
+/** The scope a token needs for one route. Search and export read. Index and remove write. Erase is admin. */
+function scopeFor(method: string, path: string): string {
+  const parts = path.slice("/api/v1/".length).split("/");
+  if (parts[0] === "items" && (method === "POST" || method === "PUT" || method === "DELETE")) return "search:write";
+  if (parts[0] === "owners" && method === "DELETE") return "search:admin";
+  return "search:read";
+}
+
+const authCache = new WeakMap<object, Promise<Auth>>();
 
 /** Build a Worker handler around `auth` (verified bearer tokens) or an injected verifier. */
 export function createWorker(opts: WorkerOptions) {
@@ -126,12 +139,26 @@ export function createWorker(opts: WorkerOptions) {
     let principal: Principal | null = null;
     if (opts.auth !== undefined) {
       try {
-        const auth = typeof opts.auth === "function" ? await opts.auth(env) : opts.auth;
-        const result = await requirePrincipal(request, auth, opts.require);
+        const source = opts.auth;
+        let auth: Auth;
+        if (typeof source === "function") {
+          let cached = authCache.get(env);
+          if (cached === undefined) {
+            cached = Promise.resolve(source(env));
+            authCache.set(env, cached);
+            cached.catch(() => authCache.delete(env));
+          }
+          auth = await cached;
+        } else {
+          auth = source;
+        }
+        const result = await requirePrincipal(request, auth, { ...opts.require, scope: scopeFor(method, path) });
         if (result instanceof Response) return result;
         principal = principalFromContext(result);
       } catch {
-        principal = null;
+        // A broken builder, option or mapping is a server fault, not a bad credential.
+        log.event("auth_error", { status: 500 });
+        return fail(500, "internal error");
       }
     } else {
       try {
@@ -202,12 +229,13 @@ export function createWorker(opts: WorkerOptions) {
 /**
  * Dev-mode verifier: trusts `x-principal-id`, `x-principal-kind` and
  * `x-principal-acting-for`. Anyone can claim any identity, so it refuses to
- * work unless `SEARCH_UNSAFE_NO_AUTH=1` is set, and it always refuses when
- * `SEARCH_ENV=production`.
+ * work unless `SEARCH_UNSAFE_NO_AUTH=1` is set, and it refuses unless
+ * `SEARCH_ENV` is `development` or `test`, so it fails closed when the variable is unset or wrong.
  */
 const unsafeHeaderVerifier: AuthVerifier = {
   async verify(request, env) {
-    if (env.SEARCH_UNSAFE_NO_AUTH !== "1" || env.SEARCH_ENV === "production") return null;
+    if (env.SEARCH_UNSAFE_NO_AUTH !== "1") return null;
+    if (env.SEARCH_ENV !== "development" && env.SEARCH_ENV !== "test") return null;
     const id = request.headers.get("x-principal-id");
     const kind = request.headers.get("x-principal-kind");
     if (id === null || kind === null) return null;

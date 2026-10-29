@@ -88,7 +88,7 @@ describe("worker E2E on D1 (miniflare)", () => {
       script: bundle.outputFiles[0]!.text,
       compatibilityDate: "2026-01-01",
       d1Databases: { DB: "worker-e2e" },
-      bindings: { SEARCH_CURSOR_SECRET: SECRET, SEARCH_UNSAFE_NO_AUTH: "1" },
+      bindings: { SEARCH_CURSOR_SECRET: SECRET, SEARCH_UNSAFE_NO_AUTH: "1", SEARCH_ENV: "test" },
     });
     const db = (await mf.getD1Database("DB")) as unknown as D1Like;
     await D1Index.migrate(db);
@@ -158,7 +158,7 @@ describe("worker E2E on D1 (miniflare)", () => {
       script: (await build({ entryPoints: ["src/worker.ts"], bundle: true, write: false, format: "esm", platform: "neutral", conditions: ["workerd", "worker", "browser"], logLevel: "silent" })).outputFiles[0]!.text,
       compatibilityDate: "2026-01-01",
       d1Databases: { DB: "bare" },
-      bindings: { SEARCH_UNSAFE_NO_AUTH: "1" },
+      bindings: { SEARCH_UNSAFE_NO_AUTH: "1", SEARCH_ENV: "test" },
     });
     try {
       const res = await bare.dispatchFetch("http://x/api/v1/search", {
@@ -226,7 +226,7 @@ describe("verified bearer tokens", () => {
           headers: { "content-type": "application/json", ...headers },
           body: JSON.stringify({ query: "a" }),
         }),
-        { SEARCH_UNSAFE_NO_AUTH: "1" },
+        { SEARCH_UNSAFE_NO_AUTH: "1", SEARCH_ENV: "test" },
       );
     return { ids, seen, call };
   };
@@ -290,7 +290,7 @@ describe("verified bearer tokens", () => {
   test("a good token of a refused kind or without the scope is 403", async () => {
     const ids = createMemoryAuth();
     const token = await ids.issue(human);
-    const send = (require: { kinds?: ("agent")[]; scope?: string }) =>
+    const send = (require: { kinds?: ("agent" | "human")[] }) =>
       createWorker({ auth: ids.auth, require, service: async () => ({ search: async () => ({ hits: [] }) }) as never }).fetch(
         new Request("http://x/api/v1/search", {
           method: "POST",
@@ -300,21 +300,56 @@ describe("verified bearer tokens", () => {
         {},
       );
     expect((await send({ kinds: ["agent"] })).status).toBe(403);
-    expect((await send({ scope: "search:read" })).status).toBe(200);
-    expect((await send({ scope: "search:write" })).status).toBe(403);
+    expect((await send({ kinds: ["human"] })).status).toBe(200);
   });
 
-  test("an auth builder that throws is a 401", async () => {
+  test("a *:read token can search but gets 403 on index, remove and erase", async () => {
+    const { ids } = await setup();
+    const w = createWorker({
+      auth: ids.auth,
+      service: async () => ({ search: async () => ({ hits: [] }), exportOwner: async () => ({}) }) as never,
+    });
+    const token = await ids.issue(human);
+    const send = (method: string, path: string) =>
+      w.fetch(
+        new Request(`http://x/api/v1${path}`, {
+          method,
+          headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+          body: method === "GET" || method === "DELETE" ? undefined : "{}",
+        }),
+        {},
+      );
+    expect((await send("POST", "/search")).status).toBe(200);
+    expect((await send("GET", "/owners/alice/export")).status).toBe(200);
+    expect((await send("PUT", "/items")).status).toBe(403);
+    expect((await send("POST", "/items")).status).toBe(403);
+    expect((await send("DELETE", "/items/x")).status).toBe(403);
+    expect((await send("DELETE", "/owners/alice")).status).toBe(403);
+  });
+
+  test("an auth builder that throws is a 500 and logs no detail", async () => {
+    const events: string[] = [];
     const w = createWorker({
       auth: () => {
         throw new Error("no keys");
       },
+      logger: { event: (n, f) => events.push(`${n}:${JSON.stringify(f)}`) },
     });
     const res = await w.fetch(
       new Request("http://x/api/v1/search", { method: "POST", headers: { authorization: "Bearer x" } }),
       {},
     );
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(500);
+    expect(events).toEqual(['auth_error:{"status":500}']);
+  });
+
+  test("a function auth builds once per env", async () => {
+    const ids = createMemoryAuth();
+    let builds = 0;
+    const w = createWorker({ auth: () => (builds++, ids.auth) });
+    const env = {};
+    for (let i = 0; i < 3; i++) await w.fetch(new Request("http://x/api/v1/search", { method: "POST" }), env);
+    expect(builds).toBe(1);
   });
 
   test("createWorker needs exactly one of auth and verifier", () => {
@@ -333,8 +368,15 @@ describe("dev mode header trust", () => {
       }),
       env,
     );
-  test("fails closed when SEARCH_ENV is production", async () => {
-    expect((await call({ SEARCH_UNSAFE_NO_AUTH: "1", SEARCH_ENV: "production" })).status).toBe(401);
+  test("fails closed when SEARCH_ENV is production, unset or unknown", async () => {
+    for (const env of ["production", "prod", "Production", undefined]) {
+      const bindings: Record<string, string> = { SEARCH_UNSAFE_NO_AUTH: "1" };
+      if (env !== undefined) bindings.SEARCH_ENV = env;
+      expect((await call(bindings)).status).toBe(401);
+    }
+  });
+  test("works with the flag and SEARCH_ENV=development", async () => {
+    expect((await call({ SEARCH_UNSAFE_NO_AUTH: "1", SEARCH_ENV: "development" })).status).not.toBe(401);
   });
   test("is off without the flag", async () => {
     expect((await call({})).status).toBe(401);
