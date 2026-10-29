@@ -106,14 +106,14 @@ function scopeFor(method: string, parts: string[]): string {
   return "search:read";
 }
 
-const authCache = new WeakMap<object, Promise<Auth>>();
-
 /** Build a Worker handler around `auth` (verified bearer tokens) or an injected verifier. */
 export function createWorker(opts: WorkerOptions) {
   if ((opts.auth === undefined) === (opts.verifier === undefined)) {
     throw new Error("createWorker needs exactly one of `auth` or `verifier`");
   }
   const log: Logger = opts.logger ?? { event() {} };
+  // One cache per Worker instance: two Workers must never share a built Auth.
+  const authCache = new WeakMap<object, Promise<Auth>>();
   const build =
     opts.service ??
     (async (env: WorkerEnv) => {
@@ -135,6 +135,7 @@ export function createWorker(opts: WorkerOptions) {
     }
     if (!path.startsWith("/api/v1/")) return fail(404, "not found");
 
+    // Decode before auth on purpose: the scope check and the router must read the same segments.
     let parts: string[];
     try {
       parts = path.slice("/api/v1/".length).split("/").map(decodeURIComponent);

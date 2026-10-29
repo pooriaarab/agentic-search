@@ -363,6 +363,24 @@ describe("verified bearer tokens", () => {
     expect(builds).toBe(1);
   });
 
+  test("two Workers on one env never share a built Auth", async () => {
+    const a = createMemoryAuth();
+    const b = createMemoryAuth();
+    const token = await a.issue(human);
+    const service = async () => ({ search: async () => ({ hits: [] }) }) as never;
+    const wa = createWorker({ auth: () => a.auth, service });
+    const wb = createWorker({ auth: () => b.auth, service });
+    const env = {};
+    const req = () =>
+      new Request("http://x/api/v1/search", {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+        body: "{}",
+      });
+    expect((await wa.fetch(req(), env)).status).toBe(200);
+    expect((await wb.fetch(req(), env)).status).toBe(401);
+  });
+
   test("createWorker needs exactly one of auth and verifier", () => {
     expect(() => createWorker({})).toThrow();
     expect(() => createWorker({ auth: createMemoryAuth().auth, verifier: { verify: async () => null } })).toThrow();
