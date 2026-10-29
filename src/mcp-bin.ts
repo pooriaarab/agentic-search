@@ -12,6 +12,7 @@ Usage: agentic-search-mcp [mcp] [--as <id>] [--kind <kind>] [--acting-for <subje
 
 // The optional `mcp` word is skipped, as in `agentic-search-mcp mcp --version`. Help and version answer anywhere
 // in the arguments, so `agentic-search-mcp --as u1 --help` shows this bin's help and does not start the server.
+// A value that happens to be `-h` or `--version` is read as that flag too. It fails safe: the server does not start.
 const args = process.argv.slice(2);
 const rest = args[0] === "mcp" ? args.slice(1) : args;
 

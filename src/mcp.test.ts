@@ -132,3 +132,8 @@ test("agentic-search-mcp refuses a stray word instead of starting the server", (
   const r = spawnSync(process.execPath, ["dist-test/mcp-bin.js", "extra", "--as", "u1", "--kind", "human", "--data", join(tmpdir(), "as-stray")], { encoding: "utf8", timeout: 20_000 });
   expect([r.status, r.stderr]).toEqual([2, expect.stringContaining('mcp takes no argument, got "extra"')]);
 });
+
+test("agentic-search refuses a stray word after mcp too", () => {
+  const r = spawnSync(process.execPath, ["dist-test/cli.js", "mcp", "extra", "--as", "u1", "--kind", "human", "--data", join(tmpdir(), "as-stray-cli")], { encoding: "utf8", timeout: 20_000 });
+  expect([r.status, r.stderr]).toEqual([2, expect.stringContaining('mcp takes no argument, got "extra"')]);
+});
