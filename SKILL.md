@@ -13,5 +13,5 @@ Start it with `npx agentic-search mcp`.
 
 ## Rules
 
-- Read the access rules in RULES.md before you index or search.
+- Read the rules at https://github.com/pooriaarab/agentic-search/blob/main/RULES.md before you index or search.
 - Report errors as errors.

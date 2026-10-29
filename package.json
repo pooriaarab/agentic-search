@@ -38,6 +38,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing/index-contract.d.ts",
+      "import": "./dist/testing/index-contract.js"
     }
   },
   "bin": {
@@ -61,5 +65,13 @@
     "tsup": "^8.0.0",
     "typescript": "^5.6.0",
     "vitest": "^3.0.0"
+  },
+  "peerDependencies": {
+    "vitest": ">=3"
+  },
+  "peerDependenciesMeta": {
+    "vitest": {
+      "optional": true
+    }
   }
 }
