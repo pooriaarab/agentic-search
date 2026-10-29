@@ -2,18 +2,21 @@ import { describe, expect, test } from "vitest";
 import { createSearch } from "./service.js";
 import { MemoryIndex } from "./memory-index.js";
 import { ForbiddenError, ValidationError } from "./errors.js";
-import { encodeCursor, queryDigest } from "./cursor.js";
+import { createCursorCodec, queryDigest } from "./cursor.js";
 import type { AccessPolicy, IndexedItem, Principal } from "./types.js";
 import { item } from "../testing/index-contract.js";
 
 const alice: Principal = { id: "alice", kind: "human" };
 const bob: Principal = { id: "bob", kind: "human" };
 
-function setup(access?: AccessPolicy, extra: { maxScan?: number; logs?: unknown[] } = {}) {
+const SECRET = "0123456789abcdef0123456789abcdef";
+
+async function setup(access?: AccessPolicy, extra: { maxScan?: number; logs?: unknown[] } = {}) {
   const store = new MemoryIndex();
   const logs = extra.logs;
-  const svc = createSearch({
+  const svc = await createSearch({
     store,
+    cursorSecret: SECRET,
     access,
     maxScan: extra.maxScan,
     logger: logs ? { event: (name, fields) => void logs.push({ name, fields }) } : undefined,
@@ -26,7 +29,7 @@ const secret = (id: string, owner: string, text = "confidential merger plan"): I
 
 describe("access filter", () => {
   test("a caller sees only items the policy allows, with no leak in hits, snippets or cursor", async () => {
-    const { svc } = setup();
+    const { svc } = await setup();
     await svc.index(alice, [secret("a1", "alice", "merger notes for alice")]);
     await svc.index(bob, [secret("b1", "bob", "merger notes for bob, codename falcon")]);
     const page = await svc.search(alice, { query: "merger" });
@@ -39,15 +42,16 @@ describe("access filter", () => {
   });
 
   test("an empty page for a caller with no access looks like an empty index", async () => {
-    const { svc } = setup();
+    const { svc } = await setup();
     await svc.index(bob, [secret("b1", "bob")]);
     const withHidden = await svc.search(alice, { query: "merger" });
-    const empty = await createSearch({ store: new MemoryIndex() }).search(alice, { query: "merger" });
+    const emptySvc = await createSearch({ store: new MemoryIndex(), cursorSecret: SECRET });
+    const empty = await emptySvc.search(alice, { query: "merger" });
     expect(withHidden).toEqual(empty);
   });
 
   test("pages fill with allowed items even when hidden items rank between them", async () => {
-    const { svc } = setup();
+    const { svc } = await setup();
     // Bob's items rank higher (more matches). Alice's rank below them.
     await svc.index(bob, Array.from({ length: 30 }, (_, i) => secret(`b${String(i).padStart(2, "0")}`, "bob", "term term term term")));
     await svc.index(alice, Array.from({ length: 5 }, (_, i) => secret(`a${i}`, "alice", "term")));
@@ -62,21 +66,30 @@ describe("access filter", () => {
   });
 
   test("a cursor never names a hidden item", async () => {
-    const { svc } = setup();
+    const { svc } = await setup();
     await svc.index(bob, Array.from({ length: 10 }, (_, i) => secret(`b${i}`, "bob", "term term term")));
     await svc.index(alice, Array.from({ length: 4 }, (_, i) => secret(`a${i}`, "alice", "term")));
     const page = await svc.search(alice, { query: "term", limit: 2 });
-    const decoded = Buffer.from(page.nextCursor!, "base64url").toString();
-    expect(decoded).not.toMatch(/"i":"b/);
+    const raw = Buffer.from(page.nextCursor!, "base64url").toString("latin1");
+    // Sealed: neither ids nor the score are readable in the cursor.
+    expect(raw).not.toMatch(/"i"|"s"|b\d|a\d/);
   });
 
-  test("the scan cap bounds the work and never returns hidden items", async () => {
-    const { svc } = setup(undefined, { maxScan: 20 });
+  test("the scan cap bounds the work, then continues so no match is lost", async () => {
+    const { svc } = await setup(undefined, { maxScan: 20 });
     await svc.index(bob, Array.from({ length: 60 }, (_, i) => secret(`b${String(i).padStart(2, "0")}`, "bob", "term term term")));
     await svc.index(alice, [secret("a1", "alice", "term")]);
-    const page = await svc.search(alice, { query: "term", limit: 5 });
-    expect(page.hits).toEqual([]);
-    expect(page.nextCursor).toBeUndefined();
+    const first = await svc.search(alice, { query: "term", limit: 5 });
+    expect(first.hits).toEqual([]);
+    expect(first.nextCursor).toBeDefined();
+    const seen: string[] = [];
+    let cursor = first.nextCursor;
+    for (let guard = 0; cursor !== undefined && guard < 20; guard++) {
+      const page = await svc.search(alice, { query: "term", limit: 5, cursor });
+      seen.push(...page.hits.map((h) => h.id));
+      cursor = page.nextCursor;
+    }
+    expect(seen).toEqual(["a1"]);
   });
 
   test("a policy answer that is not strictly true denies", async () => {
@@ -85,7 +98,7 @@ describe("access filter", () => {
       canWrite: async () => true,
       canManageOwner: async () => true,
     };
-    const { svc } = setup(odd);
+    const { svc } = await setup(odd);
     await svc.index(alice, [secret("a1", "alice")]);
     expect((await svc.search(alice, { query: "merger" })).hits).toEqual([]);
   });
@@ -96,7 +109,7 @@ describe("access filter", () => {
       canWrite: async () => true,
       canManageOwner: async () => true,
     };
-    const { svc } = setup(broken);
+    const { svc } = await setup(broken);
     await svc.index(alice, [secret("a1", "alice")]);
     await expect(svc.search(alice, { query: "merger" })).rejects.toThrow(/malformed/);
   });
@@ -109,7 +122,7 @@ describe("access filter", () => {
       canWrite: async () => true,
       canManageOwner: async () => true,
     };
-    const { svc } = setup(boom);
+    const { svc } = await setup(boom);
     await svc.index(alice, [secret("a1", "alice")]);
     await expect(svc.search(alice, { query: "merger" })).rejects.toThrow("backend down");
   });
@@ -120,13 +133,13 @@ describe("access filter", () => {
       canWrite: async (p, r) => r.owner === p.id,
       canManageOwner: async (p, o) => p.id === o,
     };
-    const { svc } = setup(shared);
+    const { svc } = await setup(shared);
     await svc.index(bob, [item("b1", { owner: "bob", text: "roadmap", resource: { type: "doc", id: "shared-doc" } })]);
     expect((await svc.search(alice, { query: "roadmap" })).hits.map((h) => h.id)).toEqual(["b1"]);
   });
 
   test("an agent acts for its human and reads that human's items only", async () => {
-    const { svc } = setup();
+    const { svc } = await setup();
     await svc.index(alice, [secret("a1", "alice")]);
     await svc.index(bob, [secret("b1", "bob")]);
     const agent: Principal = { id: "agent-7", kind: "agent_of_human", actingFor: "alice" };
@@ -141,10 +154,12 @@ describe("principal checks", () => {
     [{ id: "", kind: "human" }],
     [{ id: "x", kind: "agent_of_human" }],
     [{ id: "x", kind: "user_token" }],
+    [{ id: "mallory", kind: "human", actingFor: "alice" }],
+    [{ id: "mallory", kind: "agent", actingFor: "alice" }],
     [null],
     ["alice"],
   ])("rejects %j", async (bad) => {
-    const { svc } = setup();
+    const { svc } = await setup();
     await expect(svc.search(bad as unknown as Principal, { query: "x" })).rejects.toBeInstanceOf(ValidationError);
     await expect(svc.index(bad as unknown as Principal, [secret("a", "alice")])).rejects.toBeInstanceOf(ValidationError);
   });
@@ -152,26 +167,26 @@ describe("principal checks", () => {
 
 describe("writes", () => {
   test("a caller cannot index for another owner", async () => {
-    const { svc, store } = setup();
+    const { svc, store } = await setup();
     await expect(svc.index(alice, [secret("x", "bob")])).rejects.toBeInstanceOf(ForbiddenError);
     expect(await store.get("x")).toBeNull();
   });
 
   test("a caller cannot overwrite another owner's item by reusing its id", async () => {
-    const { svc, store } = setup();
+    const { svc, store } = await setup();
     await svc.index(bob, [secret("shared-id", "bob", "bob text")]);
     await expect(svc.index(alice, [secret("shared-id", "alice", "alice text")])).rejects.toBeInstanceOf(ForbiddenError);
     expect((await store.get("shared-id"))?.text).toBe("bob text");
   });
 
   test("a batch with one denied item writes nothing", async () => {
-    const { svc, store } = setup();
+    const { svc, store } = await setup();
     await expect(svc.index(alice, [secret("ok", "alice"), secret("no", "bob")])).rejects.toBeInstanceOf(ForbiddenError);
     expect(await store.get("ok")).toBeNull();
   });
 
   test("remove looks the same for missing and for someone else's item", async () => {
-    const { svc, store } = setup();
+    const { svc, store } = await setup();
     await svc.index(bob, [secret("b1", "bob")]);
     expect(await svc.remove(alice, "b1")).toEqual({ removed: false });
     expect(await svc.remove(alice, "nope")).toEqual({ removed: false });
@@ -180,7 +195,7 @@ describe("writes", () => {
   });
 
   test("invalid items are rejected", async () => {
-    const { svc } = setup();
+    const { svc } = await setup();
     for (const bad of [
       { ...secret("a", "alice"), kind: "video" },
       { ...secret("a", "alice"), updatedAt: Number.NaN },
@@ -194,7 +209,7 @@ describe("writes", () => {
   });
 
   test("reindex replaces the owner's items and leaves others", async () => {
-    const { svc, store } = setup();
+    const { svc, store } = await setup();
     await svc.index(alice, [secret("old1", "alice"), secret("old2", "alice")]);
     await svc.index(bob, [secret("b1", "bob")]);
     const res = await svc.reindex(alice, "alice", [secret("old2", "alice", "fresh text"), secret("new", "alice")]);
@@ -206,11 +221,28 @@ describe("writes", () => {
     await expect(svc.reindex(alice, "alice", [secret("x", "bob")])).rejects.toBeInstanceOf(ValidationError);
     expect(await svc.reindex(alice, "alice", [])).toEqual({ indexed: 0, removed: 2 });
   });
+
+  test("reindex takes more than one batch", async () => {
+    const { svc, store } = await setup();
+    const many = Array.from({ length: 1_200 }, (_, i) => secret(`a${i}`, "alice"));
+    expect(await svc.reindex(alice, "alice", many)).toEqual({ indexed: 1_200, removed: 0 });
+    expect(await store.get("a1199")).not.toBeNull();
+  });
+
+  test("a failed write during reindex keeps the old items", async () => {
+    const { svc, store } = await setup();
+    await svc.index(alice, [secret("old", "alice")]);
+    store.upsert = async () => {
+      throw new Error("disk full");
+    };
+    await expect(svc.reindex(alice, "alice", [secret("new", "alice")])).rejects.toThrow("disk full");
+    expect(await store.get("old")).not.toBeNull();
+  });
 });
 
 describe("queries and cursors", () => {
   test("rejects empty, punctuation-only, long and bad-limit queries", async () => {
-    const { svc } = setup();
+    const { svc } = await setup();
     for (const req of [
       { query: "" },
       { query: "***" },
@@ -229,19 +261,31 @@ describe("queries and cursors", () => {
   });
 
   test("rejects garbage cursors and cursors from another query", async () => {
-    const { svc } = setup();
+    const { svc } = await setup();
     await svc.index(alice, Array.from({ length: 3 }, (_, i) => secret(`a${i}`, "alice", "term")));
     for (const cursor of ["", "%%%", "e30", Buffer.from('{"s":"x","i":"a","q":"z"}').toString("base64url")]) {
       await expect(svc.search(alice, { query: "term", cursor })).rejects.toBeInstanceOf(ValidationError);
     }
     const page = await svc.search(alice, { query: "term", limit: 1 });
     await expect(svc.search(alice, { query: "other", cursor: page.nextCursor })).rejects.toBeInstanceOf(ValidationError);
-    const forged = encodeCursor({ score: Number.NaN, id: "a0" }, queryDigest({ terms: ["term"], filter: {} }));
-    await expect(svc.search(alice, { query: "term", cursor: forged })).rejects.toBeInstanceOf(ValidationError);
+    // A cursor sealed with another secret, or edited, or made for another caller, is refused.
+    const other = await createCursorCodec("ffffffffffffffffffffffffffffffff");
+    const digest = queryDigest({ terms: ["term"], filter: {}, caller: "alice", actingFor: null });
+    const foreign = await other.encode({ score: 1, id: "a0" }, digest);
+    await expect(svc.search(alice, { query: "term", cursor: foreign })).rejects.toBeInstanceOf(ValidationError);
+    const edited = page.nextCursor!.slice(0, -2) + (page.nextCursor!.endsWith("AA") ? "BB" : "AA");
+    await expect(svc.search(alice, { query: "term", cursor: edited })).rejects.toBeInstanceOf(ValidationError);
+    await expect(svc.search(bob, { query: "term", cursor: page.nextCursor })).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  test("a missing or short cursor secret throws at startup", async () => {
+    for (const cursorSecret of [undefined, "", "short", new Uint8Array(31)]) {
+      await expect(createSearch({ store: new MemoryIndex(), cursorSecret: cursorSecret as never })).rejects.toThrow(/cursorSecret/);
+    }
   });
 
   test("hits carry highlighted snippets and title highlights", async () => {
-    const { svc } = setup();
+    const { svc } = await setup();
     await svc.index(alice, [item("a", { owner: "alice", title: "Budget 2026", text: "The annual budget is final." })]);
     const [hit] = (await svc.search(alice, { query: "budget" })).hits;
     expect(hit!.titleHighlights).toEqual([[0, 6]]);
@@ -249,7 +293,7 @@ describe("queries and cursors", () => {
   });
 
   test("filters narrow results", async () => {
-    const { svc } = setup();
+    const { svc } = await setup();
     await svc.index(alice, [
       item("d", { owner: "alice", text: "x", kind: "document" }),
       item("s", { owner: "alice", text: "x", kind: "sheet" }),
@@ -260,7 +304,7 @@ describe("queries and cursors", () => {
 
 describe("GDPR", () => {
   test("export returns exactly the owner's items; erase removes them and only them", async () => {
-    const { svc, store } = setup();
+    const { svc, store } = await setup();
     await svc.index(alice, [secret("a1", "alice"), secret("a2", "alice")]);
     await svc.index(bob, [secret("b1", "bob")]);
     const exported = await svc.exportOwner(alice, "alice");
@@ -273,14 +317,14 @@ describe("GDPR", () => {
   });
 
   test("a caller cannot export or erase another owner", async () => {
-    const { svc } = setup();
+    const { svc } = await setup();
     await svc.index(bob, [secret("b1", "bob")]);
     await expect(svc.exportOwner(alice, "bob")).rejects.toBeInstanceOf(ForbiddenError);
     await expect(svc.eraseOwner(alice, "bob")).rejects.toBeInstanceOf(ForbiddenError);
   });
 
   test("export pages past the batch size", async () => {
-    const { svc } = setup();
+    const { svc } = await setup();
     const many = Array.from({ length: 1_100 }, (_, i) => secret(`a${String(i).padStart(4, "0")}`, "alice"));
     for (let i = 0; i < many.length; i += 500) await svc.index(alice, many.slice(i, i + 500));
     expect((await svc.exportOwner(alice, "alice")).items).toHaveLength(1_100);
@@ -290,7 +334,7 @@ describe("GDPR", () => {
 describe("logs", () => {
   test("events hold counts only, never titles, text, ids or owners", async () => {
     const logs: unknown[] = [];
-    const { svc } = setup(undefined, { logs });
+    const { svc } = await setup(undefined, { logs });
     const it = item("id-zebra", { owner: "alice", title: "Title zebra", text: "text zebra" });
     await svc.index(alice, [it]);
     await svc.search(alice, { query: "zebra" });

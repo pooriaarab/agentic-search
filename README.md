@@ -21,7 +21,10 @@ Requires Node.js 20 or later.
 ```ts
 import { createSearch, MemoryIndex } from "agentic-search";
 
-const search = createSearch({ store: new MemoryIndex() });
+const search = await createSearch({
+  store: new MemoryIndex(),
+  cursorSecret: process.env.SEARCH_CURSOR_SECRET!, // at least 32 bytes, kept secret
+});
 const me = { id: "u1", kind: "human" } as const;
 
 await search.index(me, [
@@ -47,7 +50,7 @@ const page = await search.search(me, { query: "budget", kinds: ["document"], lim
 - **Query.** Words are ANDed. The last word also matches as a prefix. Case and accents do not matter. Filters: kinds, owner, resource, time range.
 - **Ranking.** BM25. Title words count three times.
 - **Snippets.** A text window with highlight offsets. No HTML is produced.
-- **Pagination.** An opaque cursor. It names the last hit you received, so it never names a hidden item. A cursor works only for the query that made it.
+- **Pagination.** A sealed cursor (AES-GCM, key from `cursorSecret`). Callers cannot read it. It works only for the query and caller that made it. A missing or short secret throws.
 - **Access.** Inject an `AccessPolicy`. The default lets a principal read only what its subject owns. The service checks the policy before it returns any hit, snippet or cursor. Only an answer of exactly `true` allows. A malformed answer throws.
 - **No counts.** A page has no total, because a total would leak hidden items.
 - **Principals.** Every call takes a principal with a required `kind`. Agent principals act for a subject.
@@ -57,8 +60,8 @@ const page = await search.search(me, { query: "budget", kinds: ["document"], lim
 ## Limits
 
 - The memory index scans every item per query. Use it for tests and small sets.
-- One search call scans at most 1000 store hits. When hidden items fill that window, the page can be short.
-- BM25 statistics span the whole index, so ranking can depend on hidden items in a small way. Scores are never returned.
+- One search call scans at most 1000 store hits. When hidden items fill that window, the page can be short or empty and still carries `nextCursor`. Keep paging until it ends.
+- BM25 statistics span the whole index, so ranking can depend on hidden items in a small way. Scores are never returned, and cursors are sealed.
 - No D1 adapter, HTTP API, CLI search commands or MCP tools yet.
 
 ## Develop

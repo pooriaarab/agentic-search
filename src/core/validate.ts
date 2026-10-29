@@ -18,6 +18,7 @@ export const LIMITS = {
   maxPageSize: 100,
   defaultPageSize: 20,
   batch: 500,
+  reindex: 10_000,
 } as const;
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -95,6 +96,9 @@ export function parsePrincipal(input: unknown): Principal {
     kind: kind as PrincipalKind,
   };
   if (input.actingFor !== undefined) {
+    if (kind === "human" || kind === "agent") {
+      throw new ValidationError(`${kind} principal cannot carry actingFor`);
+    }
     principal.actingFor = str(input.actingFor, "principal.actingFor", LIMITS.id);
   }
   if (

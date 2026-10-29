@@ -1,5 +1,5 @@
 import { ownerPolicy } from "./access.js";
-import { decodeCursor, encodeCursor, queryDigest, type CursorPosition } from "./cursor.js";
+import { createCursorCodec, queryDigest, type CursorPosition } from "./cursor.js";
 import { ForbiddenError, ValidationError } from "./errors.js";
 import { makeSnippet } from "./snippet.js";
 import { highlightRanges, queryTerms } from "./text.js";
@@ -21,6 +21,8 @@ export const noopLogger: Logger = { event() {} };
 
 export interface SearchServiceOptions {
   store: IndexStore;
+  /** Seals cursors. At least 32 bytes. Keep it the same across Worker instances. */
+  cursorSecret: string | Uint8Array;
   /** Defaults to the owner-only policy. */
   access?: AccessPolicy;
   logger?: Logger;
@@ -46,7 +48,8 @@ const refOf = (i: IndexedItem): AccessRef => ({
   resource: { ...i.resource },
 });
 
-export function createSearch(opts: SearchServiceOptions): SearchService {
+export async function createSearch(opts: SearchServiceOptions): Promise<SearchService> {
+  const cursors = await createCursorCodec(opts.cursorSecret);
   const { store } = opts;
   const access = opts.access ?? ownerPolicy;
   const log = opts.logger ?? noopLogger;
@@ -71,10 +74,10 @@ export function createSearch(opts: SearchServiceOptions): SearchService {
     return (await access.canManageOwner(principal, owner)) === true;
   }
 
-  function parseItems(input: unknown): IndexedItem[] {
+  function parseItems(input: unknown, max: number = LIMITS.batch): IndexedItem[] {
     const list = Array.isArray(input) ? input : [input];
     if (list.length === 0) throw new ValidationError("no items given");
-    if (list.length > LIMITS.batch) throw new ValidationError(`at most ${LIMITS.batch} items per call`);
+    if (list.length > max) throw new ValidationError(`at most ${max} items per call`);
     return list.map(parseItem);
   }
 
@@ -122,16 +125,20 @@ export function createSearch(opts: SearchServiceOptions): SearchService {
       if (terms.length > LIMITS.terms) throw new ValidationError(`query has more than ${LIMITS.terms} words`);
       const filter = parseFilter(request as unknown as Record<string, unknown>);
       const limit = parseLimit(request.limit);
-      const digest = queryDigest({ terms, filter });
+      const digest = queryDigest({ terms, filter, caller: principal.id, actingFor: principal.actingFor ?? null });
       let after: CursorPosition | undefined =
-        request.cursor === undefined ? undefined : decodeCursor(request.cursor, digest);
+        request.cursor === undefined ? undefined : await cursors.decode(request.cursor, digest);
 
       const batch = Math.min(100, Math.max(limit * 2, 20));
       const kept: { item: IndexedItem; score: number }[] = [];
       let scanned = 0;
+      let exhausted = false;
       while (kept.length <= limit && scanned < maxScan) {
         const rows = await store.search({ terms, filter, after, limit: batch });
-        if (rows.length === 0) break;
+        if (rows.length === 0) {
+          exhausted = true;
+          break;
+        }
         const ok = await readable(principal, rows.map((r) => r.item));
         for (let i = 0; i < rows.length && kept.length <= limit; i++) {
           if (ok[i]) kept.push(rows[i] as { item: IndexedItem; score: number });
@@ -139,7 +146,10 @@ export function createSearch(opts: SearchServiceOptions): SearchService {
         scanned += rows.length;
         const tail = rows[rows.length - 1] as { item: IndexedItem; score: number };
         after = { score: tail.score, id: tail.item.id };
-        if (rows.length < batch) break;
+        if (rows.length < batch) {
+          exhausted = true;
+          break;
+        }
       }
       const more = kept.length > limit;
       const page = kept.slice(0, limit);
@@ -155,9 +165,12 @@ export function createSearch(opts: SearchServiceOptions): SearchService {
       }));
       const out: SearchPage = { hits };
       const lastKept = page[page.length - 1];
-      // The cursor names the last item the caller received, never a scanned hidden one.
       if (more && lastKept !== undefined) {
-        out.nextCursor = encodeCursor({ score: lastKept.score, id: lastKept.item.id }, digest);
+        out.nextCursor = await cursors.encode({ score: lastKept.score, id: lastKept.item.id }, digest);
+      } else if (!more && !exhausted && after !== undefined) {
+        // The scan budget ran out before the end. Send a continuation so no match is lost.
+        // The page may be short or empty. The sealed cursor keeps the position private.
+        out.nextCursor = await cursors.encode(after, digest);
       }
       log.event("search", { hits: hits.length, scanned });
       return out;
@@ -169,9 +182,11 @@ export function createSearch(opts: SearchServiceOptions): SearchService {
       if (!(await manageable(principal, owner))) throw new ForbiddenError();
       if (!Array.isArray(input)) throw new ValidationError("items must be a list");
       // An empty list is valid: it clears everything the owner has indexed.
-      const items = input.length === 0 ? [] : parseItems(input);
+      const items = input.length === 0 ? [] : parseItems(input, LIMITS.reindex);
       for (const item of items) if (item.owner !== owner) throw new ValidationError("every item must belong to owner");
       await guardWrites(principal, items);
+      // Write first, then drop stale items, so a failed write never empties the owner.
+      for (let i = 0; i < items.length; i += LIMITS.batch) await store.upsert(items.slice(i, i + LIMITS.batch));
       const keep = new Set(items.map((i) => i.id));
       let removed = 0;
       let afterId: string | undefined;
@@ -183,7 +198,6 @@ export function createSearch(opts: SearchServiceOptions): SearchService {
         if (rows.length < LIMITS.batch) break;
         afterId = (rows[rows.length - 1] as IndexedItem).id;
       }
-      await store.upsert(items);
       log.event("reindex", { indexed: items.length, removed });
       return { indexed: items.length, removed };
     },
