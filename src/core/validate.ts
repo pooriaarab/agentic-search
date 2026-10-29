@@ -1,12 +1,11 @@
+import { PrincipalParseError, parsePrincipal as checkPrincipal } from "agentic-identity";
 import { ValidationError } from "./errors.js";
 import {
   ITEM_KINDS,
-  PRINCIPAL_KINDS,
   type IndexedItem,
   type ItemFilter,
   type ItemKind,
   type Principal,
-  type PrincipalKind,
 } from "./types.js";
 
 export const LIMITS = {
@@ -85,21 +84,26 @@ export function parseFilter(input: Record<string, unknown>): ItemFilter {
   return out;
 }
 
+/**
+ * Kind and id come from agentic-identity, so every package checks them the same way.
+ * This adds the subject rules that `agentic-identity` does not check.
+ */
 export function parsePrincipal(input: unknown): Principal {
-  if (!isRecord(input)) throw new ValidationError("principal must be an object");
-  const kind = input.kind;
-  if (typeof kind !== "string" || !(PRINCIPAL_KINDS as readonly string[]).includes(kind)) {
-    throw new ValidationError("principal kind is missing or unknown");
+  let ref: { id: string; kind: Principal["kind"] };
+  try {
+    ref = checkPrincipal(input);
+  } catch (error) {
+    if (error instanceof PrincipalParseError) throw new ValidationError(error.message);
+    throw error;
   }
-  const principal: Principal = {
-    id: str(input.id, "principal.id", LIMITS.id),
-    kind: kind as PrincipalKind,
-  };
-  if (input.actingFor !== undefined) {
+  const { kind } = ref;
+  const principal: Principal = { id: ref.id, kind };
+  const { actingFor } = input as Record<string, unknown>;
+  if (actingFor !== undefined) {
     if (kind === "human" || kind === "agent") {
       throw new ValidationError(`${kind} principal cannot carry actingFor`);
     }
-    principal.actingFor = str(input.actingFor, "principal.actingFor", LIMITS.id);
+    principal.actingFor = str(actingFor, "principal.actingFor", LIMITS.id);
   }
   if (
     (principal.kind === "agent_of_human" || principal.kind === "user_token") &&

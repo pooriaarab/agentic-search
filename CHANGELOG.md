@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.3.0
+
+- Breaking: `parsePrincipal` checks the principal `id` with the `agentic-identity` rule. An id must start with an ASCII letter, digit, `_` or `-`, hold only ASCII letters, digits, `.`, `_` and `-`, and be at most 128 characters. Ids with `@`, `:`, spaces or non-ASCII letters (for example `zoë`), and longer ids, now throw `ValidationError`. The `actingFor` subject keeps the old rule (any non-empty string up to 256 characters).
+- Breaking: `engines.node` is `>=22`. `agentic-identity` requires Node 22. CI tests Node 22 only.
+- `PRINCIPAL_KINDS` and the principal kind check now come from `agentic-identity` (`^0.6.0`). That adds a runtime dependency, and through it `hono`. `agentic-search` no longer keeps its own copy. The exports and the `actingFor` rules do not change.
+
 ## 0.2.0
 
 - Add `agentic-search/client`: a typed fetch client for every Worker route under `/api/v1`. `createClient({ baseUrl, token })` returns `health`, `search`, `index`, `remove`, `exportOwner`, and `eraseOwner`. A failed call throws `SearchApiError` with a `code` and the HTTP `status`. It uses only `fetch`.

@@ -1,3 +1,5 @@
+import { PRINCIPAL_KINDS } from "agentic-identity";
+
 export const ITEM_KINDS = ["document", "sheet", "slide", "file", "comment"] as const;
 export type ItemKind = (typeof ITEM_KINDS)[number];
 
@@ -19,13 +21,6 @@ export interface IndexedItem {
   updatedAt: number;
 }
 
-export const PRINCIPAL_KINDS = [
-  "human",
-  "agent_of_human",
-  "agent_of_agent",
-  "agent",
-  "user_token",
-] as const;
 export type PrincipalKind = (typeof PRINCIPAL_KINDS)[number];
 
 export interface Principal {

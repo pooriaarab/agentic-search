@@ -8,5 +8,6 @@ export { parseItem, parsePrincipal, subjectOf, LIMITS } from "./core/validate.js
 export { tokenize, queryTerms } from "./core/text.js";
 export { MemoryVectorStore, reciprocalRankFusion } from "./core/vector.js";
 export type { Embedder, HybridRanker, Ranked, VectorEntry, VectorHit, VectorStore } from "./core/vector.js";
-export { ITEM_KINDS, PRINCIPAL_KINDS } from "./core/types.js";
+export { ITEM_KINDS } from "./core/types.js";
+export { PRINCIPAL_KINDS } from "agentic-identity";
 export type * from "./core/types.js";

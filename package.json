@@ -1,6 +1,6 @@
 {
   "name": "agentic-search",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Search for documents, sheets, slides, files and comments, for people and agents. Ports and adapters, access filtered, Cloudflare first.",
   "keywords": [
     "search",
@@ -23,7 +23,7 @@
   "type": "module",
   "private": false,
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "files": [
     "dist",
@@ -71,6 +71,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",
+    "agentic-identity": "^0.6.0",
     "zod": "^3.25.0"
   },
   "devDependencies": {

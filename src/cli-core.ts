@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { PRINCIPAL_KINDS } from "agentic-identity";
 import { ForbiddenError, ValidationError } from "./core/errors.js";
 import type { ItemKind, Principal, SearchRequest } from "./core/types.js";
 import { parsePrincipal } from "./core/validate.js";
@@ -27,7 +28,7 @@ const HELP = [
   "Principal (required, no default kind):",
   "  --as <id>, --kind <kind>, --acting-for <subject>",
   "  or AGENTIC_SEARCH_AS, AGENTIC_SEARCH_KIND, AGENTIC_SEARCH_ACTING_FOR",
-  "  kinds: human, agent_of_human, agent_of_agent, agent, user_token",
+  `  kinds: ${PRINCIPAL_KINDS.join(", ")}`,
   "",
   "Search flags:",
   "  --item-kind <k> (repeatable), --owner, --resource-type, --resource-id,",

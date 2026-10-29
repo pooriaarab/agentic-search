@@ -14,7 +14,7 @@ Search and indexing for documents, sheets, slides, files and comments, for peopl
 npm install agentic-search
 ```
 
-Requires Node.js 20 or later.
+Requires Node.js 22 or later.
 
 ## Quick start
 
@@ -64,7 +64,7 @@ The principal is required, and there is no default kind. The CLI and MCP keep a 
 - **Pagination.** A sealed cursor (AES-GCM, key from `cursorSecret`). Callers cannot read it. It works only for the query and caller that made it. A missing or short secret throws.
 - **Access.** Inject an `AccessPolicy`. The default lets a principal read only what its subject owns. The service checks the policy before it returns any hit, snippet or cursor. Only an answer of exactly `true` allows. A malformed answer throws.
 - **No counts.** A page has no total, because a total would leak hidden items.
-- **Principals.** Every call takes a principal with a required `kind`. Agent principals act for a subject.
+- **Principals.** Every call takes a principal with a required `kind`. Agent principals act for a subject. The kind list and the id rule come from `agentic-identity`. A principal id holds ASCII letters (A–Z, a–z), digits, `.`, `_` and `-`, up to 128 characters, and does not start with `.`. An `actingFor` subject uses the older rule: any non-empty string up to 256 characters.
 - **Privacy.** `eraseOwner` and `remove` delete data. `exportOwner` returns everything indexed for one owner. Logs hold counts only.
 - **D1.** `import { D1Index } from "agentic-search/d1"`. Run `D1Index.migrate(env.DB)` once, then pass `new D1Index(env.DB)` as `store`. Create the database with an EU location hint if you need EU residency.
 - **Hybrid search.** Pass `vectors: { embedder, store }` to `createSearch`. You supply an `Embedder` (a model you host) and a `VectorStore`. `MemoryVectorStore` is the reference. Word hits and vector hits are cut to what the caller may read, then fused (reciprocal rank fusion, or your own `rank` hook). Erase removes vectors too. A failing embedder fails the call.
