@@ -56,6 +56,18 @@ test("the real MCP server over stdio indexes, searches, exports and erases", asy
   }
 });
 
+test("tools/list advertises the input schemas that zod 4 emits", async () => {
+  const client = await connect(["--as", "u1", "--kind", "human"]);
+  try {
+    const schemas = Object.fromEntries((await client.listTools()).tools.map((t) => [t.name, t.inputSchema]));
+    // Pins the advertised contract. zod 4 drops additionalProperties: false, so any change here must be deliberate.
+    expect(schemas.remove).toEqual({ type: "object", properties: { id: { type: "string" } }, required: ["id"], $schema: "http://json-schema.org/draft-07/schema#" });
+    expect(schemas.search?.properties?.limit).toEqual({ type: "integer", minimum: -9007199254740991, maximum: 9007199254740991 });
+  } finally {
+    await client.close();
+  }
+});
+
 test("the server refuses to start without a principal kind", async () => {
   await expect(connect(["--as", "u1"])).rejects.toThrow();
 });

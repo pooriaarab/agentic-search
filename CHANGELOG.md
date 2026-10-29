@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Breaking: the default Worker export verifies `agentic-identity` credentials from the `DB` binding (`createStoreAuth`). Set `SEARCH_REGION`. Before, it refused every API call unless the dev flag was set. A missing token is 401 and a token without the route scope is 403. `SEARCH_UNSAFE_NO_AUTH=1` with `SEARCH_ENV` stays as the explicit local dev opt-in.
+- `zod` is 4.6.7 (was 3.25.x) for GHSA-mrhx-c7xc-m3w5. The MCP tools advertise a new input schema: object schemas no longer set `additionalProperties: false`, and integer fields carry a min and max. Extra keys are still stripped at runtime. Invalid-argument error text now uses zod 4 wording. The status and the `isError` shape do not change.
 
 ## 0.4.0
 
