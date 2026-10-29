@@ -6,7 +6,7 @@
 
 Search and indexing for documents, sheets, slides, files and comments, for people and agents. Ports and adapters, Cloudflare first.
 
-**Status:** version 0.6.0. The library, the D1 adapter, the Worker API, the HTTP client, the React search box, the CLI, the MCP server and the vector port work. See Limits before you rely on it.
+**Status:** version 0.6.1. The library, the D1 adapter, the Worker API, the HTTP client, the React search box, the CLI, the MCP server and the vector port work. See Limits before you rely on it.
 
 ## Install
 

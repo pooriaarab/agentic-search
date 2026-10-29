@@ -112,3 +112,28 @@ test("the built bin files run: cli prints the version, mcp-bin starts and needs 
   const bad = run("dist-test/cli.js", ["erase", "u1", "--data", join(dir, "x"), "--as", "u2", "--kind", "human"]);
   expect(bad.status).toBe(3);
 });
+
+test("agentic-search-mcp answers help and version under its own name, with or without the mcp word", () => {
+  const run = (args: string[]) => spawnSync(process.execPath, ["dist-test/mcp-bin.js", ...args], { encoding: "utf8", timeout: 20_000 });
+  for (const argv of [["--version"], ["-V"], ["mcp", "--version"], ["mcp", "-V"], ["--as", "u1", "--kind", "human", "--version"]]) {
+    const r = run(argv);
+    expect([argv, r.status, r.stderr, r.stdout.trim()]).toEqual([argv, 0, "", VERSION]);
+  }
+  for (const argv of [["--help"], ["-h"], ["mcp", "--help"], ["mcp", "-h"], ["--as", "u1", "--kind", "human", "--help"]]) {
+    const r = run(argv);
+    expect([argv, r.status, r.stderr]).toEqual([argv, 0, ""]);
+    expect(r.stdout.split("\n")[0]).toBe(`agentic-search-mcp ${VERSION}`);
+    expect(r.stdout).toContain("Usage: agentic-search-mcp [mcp] [--as <id>]");
+    expect(r.stdout).not.toContain("<command>");
+  }
+});
+
+test("agentic-search-mcp refuses a stray word instead of starting the server", () => {
+  const r = spawnSync(process.execPath, ["dist-test/mcp-bin.js", "extra", "--as", "u1", "--kind", "human", "--data", join(tmpdir(), "as-stray")], { encoding: "utf8", timeout: 20_000 });
+  expect([r.status, r.stderr]).toEqual([2, expect.stringContaining('mcp takes no argument, got "extra"')]);
+});
+
+test("agentic-search refuses a stray word after mcp too", () => {
+  const r = spawnSync(process.execPath, ["dist-test/cli.js", "mcp", "extra", "--as", "u1", "--kind", "human", "--data", join(tmpdir(), "as-stray-cli")], { encoding: "utf8", timeout: 20_000 });
+  expect([r.status, r.stderr]).toEqual([2, expect.stringContaining('mcp takes no argument, got "extra"')]);
+});

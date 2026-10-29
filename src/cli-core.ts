@@ -138,6 +138,8 @@ async function command(first: string, p: Parsed, io: CliIo): Promise<number> {
   const principal = principalOf(p);
   const dir = one(p, "data", "AGENTIC_SEARCH_DATA") ?? ".agentic-search";
   if (first === "mcp") {
+    // `mcp` takes flags only. A stray word would otherwise start the server and be ignored.
+    if (p.positional.length > 1) throw new ValidationError(`mcp takes no argument, got "${p.positional[1]}"`);
     const { startMcp } = await import("./mcp.js");
     await startMcp(await openLocal(dir), principal);
     return 0;
