@@ -45,6 +45,8 @@ export interface ItemFilter {
 
 export interface SearchRequest extends ItemFilter {
   query: string;
+  /** `hybrid` needs vectors on the service. It is the default when vectors are set. */
+  mode?: "lexical" | "hybrid";
   limit?: number;
   cursor?: string;
 }
