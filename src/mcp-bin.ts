@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 import { runCli } from "./cli-core.js";
 
-// The version flags belong to the CLI, not to `mcp`, so route them there.
+// The version flags belong to the CLI, not to `mcp`, so route them there. Like the CLI, only a first argument counts.
 const args = process.argv.slice(2);
-const version = args.includes("--version") || args.includes("-V");
+const version = args[0] === "--version" || args[0] === "-V";
 
 runCli(version ? ["--version"] : ["mcp", ...args]).then(
   (code) => {

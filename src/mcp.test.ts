@@ -68,6 +68,9 @@ test("the built bin files run: cli prints the version, mcp-bin starts and needs 
   expect(binVersion.status).toBe(0);
   expect(binVersion.stdout.trim()).toBe(VERSION);
   expect(binVersion.stderr).not.toContain("unknown flag");
+  const binShortVersion = run("dist-test/mcp-bin.js", ["-V"]);
+  expect(binShortVersion.status).toBe(0);
+  expect(binShortVersion.stdout.trim()).toBe(VERSION);
   const noPrincipal = run("dist-test/mcp-bin.js", ["--data", join(dir, "x")]);
   expect(noPrincipal.status).toBe(2);
   expect(noPrincipal.stderr).toContain("principal");
