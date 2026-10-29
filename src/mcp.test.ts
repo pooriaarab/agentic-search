@@ -112,3 +112,17 @@ test("the built bin files run: cli prints the version, mcp-bin starts and needs 
   const bad = run("dist-test/cli.js", ["erase", "u1", "--data", join(dir, "x"), "--as", "u2", "--kind", "human"]);
   expect(bad.status).toBe(3);
 });
+
+test("agentic-search-mcp answers help and version under its own name, with or without the mcp word", () => {
+  const run = (args: string[]) => spawnSync(process.execPath, ["dist-test/mcp-bin.js", ...args], { encoding: "utf8", timeout: 20_000 });
+  for (const argv of [["--version"], ["-V"], ["mcp", "--version"], ["mcp", "-V"]]) {
+    const r = run(argv);
+    expect([argv, r.status, r.stderr, r.stdout.trim()]).toEqual([argv, 0, "", VERSION]);
+  }
+  for (const argv of [["--help"], ["-h"], ["mcp", "--help"], ["mcp", "-h"]]) {
+    const r = run(argv);
+    expect([argv, r.status, r.stderr]).toEqual([argv, 0, ""]);
+    expect(r.stdout.split("\n")[0]).toBe(`agentic-search-mcp ${VERSION}`);
+    expect(r.stdout).toContain("Usage: agentic-search-mcp <command> [flags]");
+  }
+});

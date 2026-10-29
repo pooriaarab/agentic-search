@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 import { runCli } from "./cli-core.js";
 
-// The version flags belong to the CLI, not to `mcp`, so route them there. Like the CLI, only a first argument counts.
+// The optional `mcp` word is skipped, as in `agentic-search-mcp mcp --version`. Help and version answer here,
+// under the bin's own name. Every other argument goes to the `mcp` command. Only a first argument counts.
 const args = process.argv.slice(2);
-const version = args[0] === "--version" || args[0] === "-V";
+const rest = args[0] === "mcp" ? args.slice(1) : args;
+const answer = ["--help", "-h", "--version", "-V"].includes(rest[0] ?? "");
 
-runCli(version ? ["--version"] : ["mcp", ...args]).then(
+runCli(answer ? rest : ["mcp", ...rest], undefined, "agentic-search-mcp").then(
   (code) => {
     if (code !== 0) process.exit(code);
   },

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.1
+
+Patch. No change to the SDK, the HTTP API, or the MCP tools.
+
+- `agentic-search-mcp mcp --version` prints the version and exits 0. Before, the `mcp` word made the flag an unknown flag, and the command exited 2.
+- `agentic-search-mcp --help` and `agentic-search-mcp mcp --help` print the usage under `agentic-search-mcp`, not `agentic-search`.
+
 ## 0.6.0
 
 Minor. New `agentic-search/ui` export. No change to the SDK, CLI, MCP or HTTP shape.

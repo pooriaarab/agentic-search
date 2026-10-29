@@ -11,36 +11,39 @@ export interface CliIo {
   err(line: string): void;
 }
 
-const HELP = [
-  `agentic-search ${VERSION}`,
-  "Search for documents, sheets, slides, files and comments.",
-  "",
-  "Usage: agentic-search <command> [flags]",
-  "",
-  "Commands:",
-  "  search <query>   Search what the principal may read.",
-  "  index <file|->   Index items from a JSON file or stdin (one item or a list).",
-  "  remove <id>      Remove one item.",
-  "  export <owner>   Print everything one owner has indexed.",
-  "  erase <owner>    Erase everything one owner has indexed.",
-  "  mcp              Start the MCP server on stdio.",
-  "",
-  "Principal (required, no default kind):",
-  "  --as <id>, --kind <kind>, --acting-for <subject>",
-  "  or AGENTIC_SEARCH_AS, AGENTIC_SEARCH_KIND, AGENTIC_SEARCH_ACTING_FOR",
-  `  kinds: ${PRINCIPAL_KINDS.join(", ")}`,
-  "",
-  "Search flags:",
-  "  --item-kind <k> (repeatable), --owner, --resource-type, --resource-id,",
-  "  --after <ms>, --before <ms>, --limit <n>, --cursor <c>, --json",
-  "",
-  "Other flags:",
-  "  --data <dir>     Where the local index lives (AGENTIC_SEARCH_DATA, default ./.agentic-search).",
-  "  --help, -h       Print this help.",
-  "  --version, -V    Print the version.",
-  "",
-  "The local index is one JSON file for one writer. Use the HTTP API for shared data.",
-].join("\n");
+/** The help text. `bin` is the name the user ran, so the usage names it. */
+function helpText(bin: string): string {
+  return [
+    `${bin} ${VERSION}`,
+    "Search for documents, sheets, slides, files and comments.",
+    "",
+    `Usage: ${bin} <command> [flags]`,
+    "",
+    "Commands:",
+    "  search <query>   Search what the principal may read.",
+    "  index <file|->   Index items from a JSON file or stdin (one item or a list).",
+    "  remove <id>      Remove one item.",
+    "  export <owner>   Print everything one owner has indexed.",
+    "  erase <owner>    Erase everything one owner has indexed.",
+    "  mcp              Start the MCP server on stdio.",
+    "",
+    "Principal (required, no default kind):",
+    "  --as <id>, --kind <kind>, --acting-for <subject>",
+    "  or AGENTIC_SEARCH_AS, AGENTIC_SEARCH_KIND, AGENTIC_SEARCH_ACTING_FOR",
+    `  kinds: ${PRINCIPAL_KINDS.join(", ")}`,
+    "",
+    "Search flags:",
+    "  --item-kind <k> (repeatable), --owner, --resource-type, --resource-id,",
+    "  --after <ms>, --before <ms>, --limit <n>, --cursor <c>, --json",
+    "",
+    "Other flags:",
+    "  --data <dir>     Where the local index lives (AGENTIC_SEARCH_DATA, default ./.agentic-search).",
+    "  --help, -h       Print this help.",
+    "  --version, -V    Print the version.",
+    "",
+    "The local index is one JSON file for one writer. Use the HTTP API for shared data.",
+  ].join("\n");
+}
 
 const defaultIo: CliIo = {
   out: (line) => console.log(line),
@@ -187,10 +190,10 @@ async function command(first: string, p: Parsed, io: CliIo): Promise<number> {
 
 const COMMANDS = new Set(["search", "index", "remove", "export", "erase", "mcp"]);
 
-export async function runCli(argv: string[], io: CliIo = defaultIo): Promise<number> {
+export async function runCli(argv: string[], io: CliIo = defaultIo, bin = "agentic-search"): Promise<number> {
   const [first] = argv;
   if (first === undefined || first === "--help" || first === "-h") {
-    io.out(HELP);
+    io.out(helpText(bin));
     return 0;
   }
   if (first === "--version" || first === "-V") {
@@ -203,13 +206,13 @@ export async function runCli(argv: string[], io: CliIo = defaultIo): Promise<num
   }
   if (!COMMANDS.has(first)) {
     io.err(`unknown command "${first}"`);
-    io.err('Run "agentic-search --help" for usage.');
+    io.err(`Run "${bin} --help" for usage.`);
     return 2;
   }
   try {
     const parsed = parseArgs(argv);
     if (parsed.help) {
-      io.out(HELP);
+      io.out(helpText(bin));
       return 0;
     }
     return await command(first, parsed, io);
