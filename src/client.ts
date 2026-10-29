@@ -62,7 +62,7 @@ export interface Health {
 }
 
 export interface SearchClient {
-  /** The health route needs no token. */
+  /** The Worker does not check the token on this route. The client still sends it. */
   health(options?: CallOptions): Promise<Health>;
   search(request: SearchRequest, options?: CallOptions): Promise<SearchPage>;
   /** Index one item or a list. Indexing the same id again replaces the item. */
@@ -89,6 +89,8 @@ const SHAPES: Record<Shape, (v: unknown) => boolean> = {
 export function createClient(options: ClientOptions): SearchClient {
   if (typeof options.baseUrl !== "string" || options.baseUrl === "") throw new TypeError("createClient needs a baseUrl");
   if (typeof options.token !== "string" || options.token === "") throw new TypeError("createClient needs a token");
+  // A bad character makes fetch throw an error that holds the whole header value. Refuse it here with a fixed message.
+  if (!/^[\x21-\x7E]+$/.test(options.token)) throw new TypeError("token must be visible ASCII with no spaces or line breaks");
   let origin: URL;
   try {
     origin = new URL(options.baseUrl);

@@ -128,6 +128,9 @@ describe("createClient against the Worker handler", () => {
       expect(() => createClient({ baseUrl, token: ANN })).toThrow(TypeError);
     }
     expect(() => createClient({ baseUrl: "https://x.test", token: "" })).toThrow(TypeError);
+    for (const token of ["abc\ndef", "abc def", "abc\r", "tökén"]) {
+      expect(() => createClient({ baseUrl: "https://x.test", token })).toThrow(/^token must be visible ASCII/);
+    }
   });
 
   test("a custom fetch is called with no this", async () => {
@@ -138,6 +141,21 @@ describe("createClient against the Worker handler", () => {
       },
     };
     expect(await createClient({ baseUrl: "https://c.test", token: ANN, fetch: holder.fetch }).health()).toMatchObject({ ok: true });
+  });
+
+  test("a redirect is not followed and fails as UNKNOWN", async () => {
+    let calls = 0;
+    const redirecting = createClient({
+      baseUrl: "https://c.test",
+      token: ANN,
+      fetch: (async (_u: string, init: RequestInit) => {
+        calls++;
+        expect(init.redirect).toBe("manual");
+        return new Response(null, { status: 302, headers: { location: "https://evil.test" } });
+      }) as never,
+    });
+    const error = await refusal(redirecting.search({ query: "a" }));
+    expect([error.code, error.status, calls]).toEqual(["UNKNOWN", 302, 1]);
   });
 
   test("an aborted call rejects with the signal reason", async () => {

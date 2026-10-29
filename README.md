@@ -134,7 +134,7 @@ try {
 ```
 
 - The methods are `health`, `search`, `index`, `remove`, `exportOwner`, and `eraseOwner`. Each takes an optional `{ signal }`.
-- `baseUrl` is the Worker URL, `http` or `https`, with no query, hash, or credentials.
+- `baseUrl` is the Worker URL, `http` or `https`, with no query, hash, or credentials. `token` is visible ASCII with no spaces or line breaks.
 - A failed call throws `SearchApiError`. The Worker sends only an error text, so `code` comes from the status: `INVALID_INPUT` (400), `UNAUTHENTICATED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `TOO_LARGE` (413), `UNSUPPORTED_MEDIA_TYPE` (415), `INTERNAL` (500). Any other status, and a `200` reply with the wrong shape, is `UNKNOWN`.
 - The client never follows a redirect and never retries. A network failure rejects with the error from `fetch`, not a `SearchApiError`, and so does an aborted call.
 
