@@ -2,7 +2,10 @@
 
 ## Unreleased
 
-- The Worker verifies bearer tokens with `agentic-identity/http`. New option `createWorker({ auth, require })` answers 401 for a missing or bad token. It checks the scope per route (`search:read`, `search:write`, `search:admin`) and the kinds in `require`, and answers 403 when a token falls short. A broken auth builder is a 500 with a logged `auth_error`. The principal comes from the token, and `x-principal-*` headers are ignored. `verifier` still works, but you must give exactly one of `auth` or `verifier`. The header-trust dev mode (`SEARCH_UNSAFE_NO_AUTH=1`) now also needs `SEARCH_ENV` to be exactly `development` or `test`. Breaking for trial setups: set it, or the Worker answers 401.
+## 0.4.0
+
+- Breaking: the Worker verifies bearer tokens with `agentic-identity/http`. New option `createWorker({ auth, require })` answers 401 for a missing or bad token. It checks the scope per route (`search:read`, `search:write`, `search:admin`) and the kinds in `require`, and answers 403 when a token falls short. A broken auth builder is a 500 with a logged `auth_error`. The principal comes from the token, and `x-principal-*` headers are ignored. `verifier` still works, but you must give exactly one of `auth` or `verifier`.
+- Migration: the header-trust dev mode (`SEARCH_UNSAFE_NO_AUTH=1`) now also needs `SEARCH_ENV` to be exactly `development` or `test`. Without it, the Worker answers 401. Set `SEARCH_ENV` in trial setups, or move to bearer tokens.
 
 ## 0.3.1
 
