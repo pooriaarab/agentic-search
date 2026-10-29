@@ -83,8 +83,18 @@ export async function createSearch(opts: SearchServiceOptions): Promise<SearchSe
   const depth = vec?.depth ?? 100;
   if (!Number.isInteger(depth) || depth < 1 || depth > 1_000) throw new ValidationError("depth must be from 1 to 1000");
 
-  const embedItems = (items: IndexedItem[]) =>
-    vec === undefined ? Promise.resolve([]) : embedChecked(vec.embedder, items.map(embedText));
+  const minScore = vec?.minScore ?? 0;
+  if (typeof minScore !== "number" || !Number.isFinite(minScore)) throw new ValidationError("minScore must be a number");
+
+  /** Embed in batches: real embedders cap the batch size. */
+  const embedItems = async (items: IndexedItem[]): Promise<number[][]> => {
+    const out: number[][] = [];
+    if (vec === undefined) return out;
+    for (let i = 0; i < items.length; i += LIMITS.batch) {
+      out.push(...(await embedChecked(vec.embedder, items.slice(i, i + LIMITS.batch).map(embedText))));
+    }
+    return out;
+  };
   const putVectors = async (items: IndexedItem[], vectors: number[][]) => {
     if (vec !== undefined) {
       await vec.store.upsert(items.map((it, i) => ({ id: it.id, owner: it.owner, vector: vectors[i] as number[] })));
@@ -146,7 +156,7 @@ export async function createSearch(opts: SearchServiceOptions): Promise<SearchSe
     digest: string,
   ): Promise<SearchPage> {
     const offset = request.cursor === undefined ? 0 : (await cursors.decode(request.cursor, digest)).score;
-    if (!Number.isInteger(offset) || offset < 0 || offset > depth) throw new ValidationError("invalid cursor");
+    if (!Number.isInteger(offset) || offset < 0 || offset > 2 * depth) throw new ValidationError("invalid cursor");
     const items = new Map<string, IndexedItem>();
     const lexical: Ranked[] = [];
     let after: CursorPosition | undefined;
@@ -164,24 +174,39 @@ export async function createSearch(opts: SearchServiceOptions): Promise<SearchSe
       if (tail === undefined || rows.length < 100) break;
       after = { score: tail.score, id: tail.item.id };
     }
-    const [query] = await embedChecked((vec as NonNullable<typeof vec>).embedder, [request.query]);
-    const near = (await (vec as NonNullable<typeof vec>).store.query(query as number[], depth)).filter(
-      (h) => h.score > (vec?.minScore ?? 0),
-    );
-    // An id the store no longer holds, or one outside the filter, is dropped.
-    const loaded = await Promise.all(near.map((h) => items.get(h.id) ?? store.get(h.id)));
-    const cands = near.flatMap((h, i) => {
-      const item = loaded[i];
-      return item !== null && item !== undefined && passes(item, filter) ? [{ hit: h, item }] : [];
-    });
-    const ok = await readable(principal, cands.map((c) => c.item));
+    const { embedder, store: vstore } = vec as NonNullable<typeof vec>;
+    const [query] = await embedChecked(embedder, [request.query]);
+    // Ask for more vectors until `depth` of them are readable, so other people's
+    // items cannot push every readable one out. Each id is loaded and checked once.
+    const verdict = new Map<string, IndexedItem | null>();
     const vector: Ranked[] = [];
-    cands.forEach((c, i) => {
-      if (ok[i]) {
-        vector.push({ id: c.hit.id, score: c.hit.score });
-        items.set(c.hit.id, c.item);
+    for (let want = depth; ; want = Math.min(want * 4, maxScan)) {
+      const near = await vstore.query(query as number[], want);
+      const fresh = near.filter((h) => {
+        if (typeof h?.id !== "string" || typeof h.score !== "number" || !Number.isFinite(h.score)) {
+          throw new Error("the vector store returned a bad hit");
+        }
+        return !verdict.has(h.id);
+      });
+      const loaded = await Promise.all(fresh.map((h) => items.get(h.id) ?? store.get(h.id)));
+      // An id the store no longer holds, or one outside the filter, is dropped.
+      const cands = fresh.flatMap((h, i) => {
+        const item = loaded[i];
+        return item !== null && item !== undefined && passes(item, filter) ? [item] : [];
+      });
+      const ok = await readable(principal, cands);
+      fresh.forEach((h) => verdict.set(h.id, null));
+      cands.forEach((item, i) => verdict.set(item.id, ok[i] ? item : null));
+      vector.length = 0;
+      for (const h of near) {
+        const item = verdict.get(h.id);
+        if (item && h.score > minScore && vector.length < depth) {
+          vector.push({ id: h.id, score: h.score });
+          items.set(h.id, item);
+        }
       }
-    });
+      if (vector.length >= depth || near.length < want || want >= maxScan) break;
+    }
     const fused = rank({ lexical, vector });
     const seen = new Set<string>();
     const ordered: IndexedItem[] = [];
@@ -205,6 +230,7 @@ export async function createSearch(opts: SearchServiceOptions): Promise<SearchSe
       await guardWrites(principal, items);
       // Embed first: a failing embedder stops the call before anything is written.
       const vectors = await embedItems(items);
+      // If the vector write fails after this, the call fails and the item may lack its vector until you index it again.
       await store.upsert(items);
       await putVectors(items, vectors);
       log.event("index", { items: items.length });
@@ -222,8 +248,9 @@ export async function createSearch(opts: SearchServiceOptions): Promise<SearchSe
         log.event("remove", { removed: 0 });
         return { removed: false };
       }
-      const removed = await store.remove(id);
+      // Vector first: if it fails, a retry still finds the item and erases both.
       await vec?.store.remove(id);
+      const removed = await store.remove(id);
       log.event("remove", { removed: removed ? 1 : 0 });
       return { removed };
     },
@@ -305,8 +332,9 @@ export async function createSearch(opts: SearchServiceOptions): Promise<SearchSe
       for (;;) {
         const rows = await store.listByOwner(owner, { limit: LIMITS.batch, after: afterId });
         for (const r of rows) {
-          if (!keep.has(r.id) && (await store.remove(r.id))) removed++;
-          if (!keep.has(r.id)) await vec?.store.remove(r.id);
+          if (keep.has(r.id)) continue;
+          await vec?.store.remove(r.id);
+          if (await store.remove(r.id)) removed++;
         }
         if (rows.length < LIMITS.batch) break;
         afterId = (rows[rows.length - 1] as IndexedItem).id;
@@ -319,8 +347,8 @@ export async function createSearch(opts: SearchServiceOptions): Promise<SearchSe
       const principal = parsePrincipal(principalIn);
       if (typeof owner !== "string" || owner.length === 0) throw new ValidationError("owner is required");
       if (!(await manageable(principal, owner))) throw new ForbiddenError();
-      const removed = await store.removeByOwner(owner);
       await vec?.store.removeByOwner(owner);
+      const removed = await store.removeByOwner(owner);
       log.event("erase_owner", { removed });
       return { removed };
     },

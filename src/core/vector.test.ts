@@ -3,7 +3,7 @@ import { createSearch } from "./service.js";
 import { MemoryIndex } from "./memory-index.js";
 import { ValidationError } from "./errors.js";
 import { MemoryVectorStore, reciprocalRankFusion, type Embedder, type HybridRanker } from "./vector.js";
-import { item } from "../testing/index-contract.js";
+import { item, runVectorContract } from "../testing/index-contract.js";
 import type { Principal } from "./types.js";
 
 const SECRET = "x".repeat(40);
@@ -144,27 +144,77 @@ describe("vectors and erase", () => {
   });
 });
 
-describe("MemoryVectorStore and the default ranker", () => {
-  test("cosine order, owner erase, and dimension checks", async () => {
-    const v = new MemoryVectorStore(2);
-    await v.upsert([
-      { id: "x", owner: "o1", vector: [1, 0] },
-      { id: "y", owner: "o2", vector: [0.9, 0.1] },
-      { id: "z", owner: "o2", vector: [0, 1] },
-    ]);
-    expect((await v.query([1, 0], 3)).map((h) => h.id)).toEqual(["x", "y", "z"]);
-    await expect(v.query([1], 3)).rejects.toThrow();
-    await expect(v.upsert([{ id: "w", owner: "o", vector: [1, Infinity] }])).rejects.toThrow();
-    expect(await v.removeByOwner("o2")).toBe(2);
-    expect(await v.remove("x")).toBe(true);
-    expect(v.size).toBe(0);
-  });
+runVectorContract("memory", () => new MemoryVectorStore(2));
 
+describe("the default ranker", () => {
   test("fusion rewards a hit that is in both lists", () => {
     const out = reciprocalRankFusion()({
       lexical: [{ id: "a", score: 5 }, { id: "b", score: 4 }],
       vector: [{ id: "c", score: 1 }, { id: "b", score: 0.9 }],
     });
     expect(out.map((r) => r.id)).toEqual(["b", "a", "c"]);
+  });
+});
+
+describe("review cases", () => {
+  test("a cursor past depth still works when word and vector sides hold different ids", async () => {
+    const split: Embedder = {
+      dimensions: 3,
+      embed: async (t) => t.map((x) => (x.includes("invoice") || x === "zebra" ? [1, 0, 0] : [0, 1, 0])),
+    };
+    const { svc } = await make({ depth: 3, embedder: split });
+    await svc.index(u1, [
+      ...[0, 1, 2].map((i) => item(`w${i}`, { text: `zebra ${"zebra ".repeat(3 - i)}` })),
+      ...[0, 1, 2].map((i) => item(`v${i}`, { text: `invoice ${"invoice ".repeat(3 - i)}` })),
+    ]);
+    const seen: string[] = [];
+    let cursor: string | undefined;
+    for (let n = 0; n < 6; n++) {
+      const page = await svc.search(u1, { query: "zebra", limit: 2, cursor });
+      seen.push(...ids(page));
+      cursor = page.nextCursor;
+      if (cursor === undefined) break;
+    }
+    expect(seen).toHaveLength(6);
+  });
+
+  test("a failed vector delete is retried by the next remove and reindex", async () => {
+    const { svc, vectors } = await make();
+    await svc.index(u1, [item("a", { text: "money" }), item("b", { text: "dog" })]);
+    const real = vectors.remove.bind(vectors);
+    let fail = true;
+    vectors.remove = async (id) => {
+      if (fail) throw new Error("vector store down");
+      return real(id);
+    };
+    await expect(svc.remove(u1, "a")).rejects.toThrow("down");
+    await expect(svc.reindex(u1, "u1", [])).rejects.toThrow("down");
+    fail = false;
+    expect(await svc.remove(u1, "a")).toEqual({ removed: true });
+    await svc.reindex(u1, "u1", []);
+    expect(vectors.size).toBe(0);
+  });
+
+  test("more hidden vectors than depth do not empty the readable side", async () => {
+    const { svc } = await make({ depth: 5 });
+    await svc.index(u2, Array.from({ length: 12 }, (_, i) => item(`h${i}`, { owner: "u2", text: `money money money ${"cost ".repeat(i)}` })));
+    await svc.index(u1, [item("mine", { text: "invoice dog" })]);
+    expect(ids(await svc.search(u1, { query: "money" }))).toEqual(["mine"]);
+  });
+
+  test("a bad minScore and a bad vector hit are refused", async () => {
+    await expect(createSearch({ store: new MemoryIndex(), cursorSecret: SECRET, vectors: { embedder: fakeEmbedder, store: new MemoryVectorStore(3), minScore: Number.NaN } })).rejects.toThrow(ValidationError);
+    const vstore = new MemoryVectorStore(3);
+    vstore.query = async () => [{ id: "a", score: Number.NaN }];
+    const svc = await createSearch({ store: new MemoryIndex(), cursorSecret: SECRET, vectors: { embedder: fakeEmbedder, store: vstore } });
+    await expect(svc.search(u1, { query: "money" })).rejects.toThrow("bad hit");
+  });
+
+  test("reindex embeds in batches", async () => {
+    const sizes: number[] = [];
+    const embedder: Embedder = { dimensions: 3, embed: async (t) => (sizes.push(t.length), t.map(() => [1, 0, 0])) };
+    const { svc } = await make({ embedder });
+    await svc.reindex(u1, "u1", Array.from({ length: 1200 }, (_, i) => item(`b${i}`)));
+    expect(sizes).toEqual([500, 500, 200]);
   });
 });
