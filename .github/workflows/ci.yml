@@ -20,7 +20,7 @@ jobs:
     strategy:
       matrix:
         node: ["22"]
-        shared: [locked, minimum, latest]
+        shared: [locked, minimum, latest, compatible]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -29,6 +29,8 @@ jobs:
       - run: npm ci
       - if: matrix.shared == 'minimum'
         run: npm install --no-save --package-lock=false agentic-design@0.8.0 agentic-identity@0.9.0
+      - if: matrix.shared == 'compatible'
+        run: npm install --no-save --package-lock=false 'agentic-design@>=0.8.0 <1.0.0' 'agentic-identity@>=0.9.0 <1.0.0'
       - if: matrix.shared == 'latest'
         run: npm install --no-save --package-lock=false agentic-design@latest agentic-identity@latest
       - run: npm run build
