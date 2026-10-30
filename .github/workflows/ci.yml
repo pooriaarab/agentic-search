@@ -18,6 +18,7 @@ jobs:
   check:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         node: ["22"]
         shared: [locked, minimum, latest, compatible]
