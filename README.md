@@ -249,7 +249,7 @@ npm ci
 npm run ci:local
 ```
 
-`ci:local` also runs the browser tests (`npm run test:e2e`). Set `SEARCH_E2E_PORT` to use another port when the default 8792 is busy. They need Chromium: run `npx playwright install chromium` once. `npm run build` makes `demo-dist` first, and the tests serve it with the demo Worker.
+`ci:local` also runs the browser tests (`npm run test:e2e`). Set `SEARCH_E2E_PORT` (1 to 65435) to use another port when the default 8792 is busy. Empty values use the default. They need Chromium: run `npx playwright install chromium` once. `npm run build` makes `demo-dist` first, and the tests serve it with the demo Worker.
 
 ## License
 
