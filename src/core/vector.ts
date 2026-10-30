@@ -120,6 +120,13 @@ export class MemoryVectorStore implements VectorStore {
     return hits.sort((a, b) => b.score - a.score || (a.id < b.id ? -1 : 1)).slice(0, limit);
   }
 
+  /** Account export: includes every vector owned by the subject, even without an index row. */
+  async listByOwner(owner: string, opts: { limit: number; after?: string }): Promise<VectorEntry[]> {
+    return [...this.rows].filter(([id, row]) => row.owner === owner && (opts.after === undefined || id > opts.after))
+      .sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).slice(0, opts.limit)
+      .map(([id, row]) => ({ id, owner: row.owner, vector: [...row.vector] }));
+  }
+
   /** Test helper: how many vectors are stored. */
   get size(): number {
     return this.rows.size;

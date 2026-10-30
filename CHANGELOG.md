@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.0
+
+- Add `agentic-search/account` with a typed account registry contributor.
+- Export owner index copies and vectors; erase both with safe retries.
+- Refuse damaged account rows and invalid ownership or page order.
+- Document shared-source and authorship boundaries for host account workflows.
+
 ## 0.6.3
 
 Patch. No change to the SDK, CLI, MCP or HTTP shape.
