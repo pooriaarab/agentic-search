@@ -14,7 +14,7 @@ function Demo() {
   return (
     <main className="demo">
       <h1>agentic-search</h1>
-      <p className="demo__lead">Search sample documents, sheets, slides, files and comments. Press / or Ctrl+K to start.</p>
+      <p className="demo__lead">Search sample documents, sheets, slides, tables, tasks, forms, boards, files and comments. Press / or Ctrl+K to start.</p>
       <SearchBox client={client} onSelect={setPicked} />
       <p className="demo__picked" role="status">
         {picked === null ? "Pick a result with the arrow keys and Enter." : `You picked ${picked.title}, a ${picked.kind}.`}
