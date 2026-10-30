@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.1 - 2026-10-30
+
+**Changed**
+
+- Allow current releases of the shared packages.
+
 ## 0.7.0
 
 - Add `agentic-search/account` with a typed account registry contributor.

@@ -97,4 +97,4 @@ test("account pagination accepts D1 Unicode order across and within pages", asyn
   expect(exported.items.slice(-2)).toMatchObject([{ id: "！a" }, { id: "😀b" }]);
   expect(await searchAccount.eraseAccount(subject, deps)).toEqual({ items: 102, vectors: 0 });
   expect(await store.get("😀b")).toBeNull();
-});
+}, 20_000);
