@@ -4,7 +4,7 @@
 
 **Changed**
 
-- Accept agentic-design 0.10.x and test with current shared package releases.
+- Accept agentic-design 0.10.x and test current and minimum shared package releases.
 
 ## 0.8.0 - 2026-10-30
 
