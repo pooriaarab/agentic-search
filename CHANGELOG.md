@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.2 - 2026-10-30
+
+**Changed**
+
+- Accept shared package releases below 1.0.0 and test the current releases.
+
 ## 0.8.1 - 2026-10-30
 
 **Changed**
