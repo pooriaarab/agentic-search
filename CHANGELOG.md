@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.8.0 - 2026-10-30
+
+**Added**
+
+- Add table, task, form and board kinds to indexing, filters and result groups.
+- Verify all suite kinds with human and agent callers on memory, file and D1 stores.
+- Verify that revoked shares deny fresh searches and saved cursor pages in lexical and hybrid search.
+- Add demo samples for the new kinds. Set `SEARCH_E2E_PORT` to change the browser test port.
+
 ## 0.7.1 - 2026-10-30
 
 **Changed**

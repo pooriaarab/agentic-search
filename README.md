@@ -4,9 +4,9 @@
 
 [Source](https://github.com/pooriaarab/agentic-search) · [Support](https://github.com/pooriaarab/agentic-search/issues)
 
-Search and indexing for documents, sheets, slides, files and comments, for people and agents. Ports and adapters, Cloudflare first.
+Search and indexing for documents, sheets, slides, tables, tasks, forms, boards, files and comments, for people and agents. Ports and adapters, Cloudflare first.
 
-**Status:** version 0.7.1. The library, the D1 adapter, the Worker API, the HTTP client, the React search box, the CLI, the MCP server and the vector port work. See Limits before you rely on it.
+**Status:** version 0.8.0. The library, the D1 adapter, the Worker API, the HTTP client, the React search box, the CLI, the MCP server and the vector port work. See Limits before you rely on it.
 
 ## Install
 
@@ -57,7 +57,8 @@ The principal is required, and there is no default kind. The CLI and MCP keep a 
 
 ## How it works
 
-- **Items.** An item has `id`, `kind` (`document`, `sheet`, `slide`, `file`, `comment`), `title`, `text`, `owner`, a `resource` reference and `updatedAt`.
+- **Shares.** Apps supply an `AccessPolicy` that checks current read rights for each principal. Search checks it on every call, including cursor pages. A revoked share stops access without reindexing. The default policy allows only the owner subject. Docs use the `document` kind.
+- **Items.** An item has `id`, `kind` (`document`, `sheet`, `slide`, `table`, `task`, `form`, `board`, `file`, `comment`), `title`, `text`, `owner`, a `resource` reference and `updatedAt`.
 - **Query.** Words are ANDed. The last word also matches as a prefix. Case and accents do not matter. Filters: kinds, owner, resource, time range.
 - **Ranking.** Saturated term frequency with length normalisation (the BM25 shape). Title words count three times. No corpus statistics.
 - **Snippets.** A text window with highlight offsets. No HTML is produced.
@@ -160,7 +161,7 @@ const client = createClient({ baseUrl: "https://search.example.com", token });
 - Create the client once, outside render or with `useMemo`. A new client makes the box search again.
 - Press `/` or Ctrl+K (Cmd+K on a Mac) to focus the field. Ctrl+K works from any field, so it takes the key from an editor on the same page. A `/` typed in a text field stays text. Set `shortcut={false}` to turn the keys off.
 - A query goes out `debounceMs` (200) after the last key. A newer query cancels the one in flight, so an old answer never replaces a new one.
-- Results show in groups: documents, sheets, slides, files, comments. The field keeps focus. Arrow Down and Arrow Up move through the results, Enter picks one, and Escape closes the panel and then clears the field.
+- Results show in groups: documents, sheets, slides, tables, tasks, forms, boards, files, comments. The field keeps focus. Arrow Down and Arrow Up move through the results, Enter picks one, and Escape closes the panel and then clears the field.
 - A failed call shows an error with a Try again button. It never shows as "no results". No match shows an empty state.
 - It follows the combobox pattern, announces the result count, and works at 390px wide. Tests check it with axe against WCAG 2.2 AA in light and dark.
 - `labels` replaces any text, for other languages. `kinds` limits the search. `limit` sets the page size (default 20).
@@ -248,7 +249,7 @@ npm ci
 npm run ci:local
 ```
 
-`ci:local` also runs the browser tests (`npm run test:e2e`). They need Chromium: run `npx playwright install chromium` once. `npm run build` makes `demo-dist` first, and the tests serve it with the demo Worker.
+`ci:local` also runs the browser tests (`npm run test:e2e`). Set `SEARCH_E2E_PORT` (1 to 65435) to use another port when the default 8792 is busy. Empty values use the default. They need Chromium: run `npx playwright install chromium` once. `npm run build` makes `demo-dist` first, and the tests serve it with the demo Worker.
 
 ## License
 

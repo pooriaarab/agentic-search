@@ -1,6 +1,6 @@
 # agentic-search
 
-Search for documents, sheets, slides, files and comments, filtered by what the caller may read.
+Search for documents, sheets, slides, tables, tasks, forms, boards, files and comments, filtered by what the caller may read.
 
 - CLI: npx agentic-search --help
 - MCP: npx agentic-search mcp (tools: search, index, remove, export_owner, erase_owner)

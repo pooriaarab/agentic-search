@@ -45,9 +45,9 @@ test("results are grouped by kind, and the arrow keys and Enter pick one", async
   await field(page).pressSequentially("budg", { delay: 20 });
   const list = page.getByRole("listbox", { name: "Search" });
   await expect(list).toBeVisible();
-  await expect(list.getByRole("group")).toHaveCount(5);
+  await expect(list.getByRole("group")).toHaveCount(9);
   // The groups come in a fixed order.
-  expect(await list.locator(".agd-search__group-title").allTextContents()).toEqual(["Documents", "Sheets", "Slides", "Files", "Comments"]);
+  expect(await list.locator(".agd-search__group-title").allTextContents()).toEqual(["Documents", "Sheets", "Slides", "Tables", "Tasks", "Forms", "Boards", "Files", "Comments"]);
   await expect(page.getByRole("status").filter({ hasText: "results" })).toBeVisible();
   expect(searches).toEqual([expect.objectContaining({ query: "budg" })]);
   await audit(page, "2-results");
@@ -60,7 +60,7 @@ test("results are grouped by kind, and the arrow keys and Enter pick one", async
   await expect(list.getByRole("option").last()).toHaveAttribute("aria-selected", "true");
   await page.keyboard.press("ArrowDown");
   await page.keyboard.press("Enter");
-  await expect(page.getByText(/^You picked .*, a (document|sheet|slide|file|comment)\.$/)).toBeVisible();
+  await expect(page.getByText(/^You picked .*, a (document|sheet|slide|table|task|form|board|file|comment)\.$/)).toBeVisible();
   await expect(list).toBeHidden();
   // Focus stays in the field.
   await expect(field(page)).toBeFocused();
@@ -134,4 +134,14 @@ test("the demo API is read-only", async ({ request }) => {
   expect((await request.post("/api/v1/items", { data: { items: [] } })).status()).toBe(404);
   expect((await request.delete("/api/v1/owners/demo")).status()).toBe(404);
   expect((await request.get("/api/v1/owners/demo/export")).status()).toBe(404);
+});
+
+test("new suite kinds appear as selectable result groups", async ({ page }) => {
+  await page.goto("/");
+  await field(page).fill("budget");
+  const list = page.getByRole("listbox", { name: "Search" });
+  await expect(list.getByRole("group")).toHaveCount(9);
+  expect(await list.locator(".agd-search__group-title").allTextContents()).toEqual(["Documents", "Sheets", "Slides", "Tables", "Tasks", "Forms", "Boards", "Files", "Comments"]);
+  await page.keyboard.press("ArrowDown");
+  await expect(list.getByRole("option").first()).toHaveAttribute("aria-selected", "true");
 });

@@ -1,7 +1,12 @@
 import { defineConfig } from "@playwright/test";
 import { fileURLToPath } from "node:url";
 
-const PORT = 8792;
+const portInput = process.env.SEARCH_E2E_PORT;
+const PORT = Number(portInput?.trim() || 8792);
+// Reserve the next 100 ports for the inspector offset below.
+if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65435) {
+  throw new Error("SEARCH_E2E_PORT must be a whole number from 1 to 65435");
+}
 const wrangler = fileURLToPath(new URL("./node_modules/wrangler/bin/wrangler.js", import.meta.url));
 
 // The tests run against the real demo Worker under `wrangler dev`. Run `npm run build` first.
