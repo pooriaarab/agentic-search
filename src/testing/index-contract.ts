@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, test } from "vitest";
 import type { IndexedItem, IndexStore, StoreQuery } from "../core/types.js";
+import { createSearch } from "../core/service.js";
+import { MemoryVectorStore } from "../core/vector.js";
+import type { ItemKind, Principal } from "../core/types.js";
 import { queryTerms } from "../core/text.js";
 
 export interface ContractHarness {
@@ -41,6 +44,55 @@ export function runIndexContract(name: string, make: () => Promise<ContractHarne
     afterEach(async () => {
       await h?.close?.();
     });
+
+    // Failure cases: missing kinds, kind filters, body/title rank, cross-principal
+    // reads, stale grants (including a saved cursor), and hidden vector hits.
+    test.each(["lexical", "hybrid"] as const)("%s search ranks all suite kinds and rechecks shares", async (mode) => {
+      const store = await setup();
+      const kinds: ItemKind[] = ["document", "sheet", "slide", "table", "task", "form", "board", "file", "comment"];
+      const owner: Principal = { id: "u1", kind: "human" };
+      const human: Principal = { id: "reader", kind: "human" };
+      const agent: Principal = { id: "reader-agent", kind: "agent" };
+      const grants = new Set([human.id, agent.id]);
+      const svc = await createSearch({
+        store,
+        cursorSecret: "suite-kind-test-secret".repeat(2),
+        access: {
+          async canRead(p, refs) {
+            return refs.map((r) => r.owner === p.id || (grants.has(p.id) && r.resource.type === "shared"));
+          },
+          async canWrite(p, ref) { return p.id === ref.owner; },
+          async canManageOwner(p, id) { return p.id === id; },
+        },
+        vectors: mode === "hybrid" ? {
+          store: new MemoryVectorStore(2),
+          // Title matches also have the nearest semantic vector.
+          embedder: { dimensions: 2, async embed(texts) { return texts.map((t) => t.startsWith("budget") ? [1, 0] : [1, 1]); } },
+        } : undefined,
+      });
+      const shared = kinds.flatMap((kind) => [
+        item(`${kind}-title`, { kind, title: "budget", text: "notes", resource: { type: "shared", id: kind } }),
+        item(`${kind}-body`, { kind, title: "notes", text: "budget", resource: { type: "shared", id: kind } }),
+      ]);
+      await svc.index(owner, [...shared, item("hidden", { kind: "board", title: "budget budget", text: "private budget" })]);
+      for (const caller of [human, agent]) {
+        for (const kind of kinds) {
+          const page = await svc.search(caller, { query: "budget", kinds: [kind], mode });
+          expect(page.hits.map((h) => h.id)).toEqual([`${kind}-title`, `${kind}-body`]);
+        }
+        const all = await svc.search(caller, { query: "budget", mode, limit: 100 });
+        expect(all.hits.map((h) => h.id).sort()).toEqual(shared.map((i) => i.id).sort());
+        expect(JSON.stringify(all)).not.toContain("private");
+        expect(Object.keys(all)).toEqual(["hits"]);
+        const first = await svc.search(caller, { query: "budget", mode, limit: 1 });
+        expect(first.nextCursor).toBeTypeOf("string");
+        grants.delete(caller.id);
+        expect(await svc.search(caller, { query: "budget", mode })).toEqual({ hits: [] });
+        expect(await svc.search(caller, { query: "budget", mode, limit: 1, cursor: first.nextCursor })).toEqual({ hits: [] });
+        expect(await svc.search(owner, { query: "budget", mode, limit: 100 })).toHaveProperty("hits.length", 19);
+      }
+      expect(await svc.search({ id: "stranger", kind: "agent" }, { query: "budget", mode })).toEqual({ hits: [] });
+    }, 30_000);
 
     test("upsert then get round-trips every field", async () => {
       const s = await setup();

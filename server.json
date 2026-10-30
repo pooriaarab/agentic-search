@@ -1,8 +1,8 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.pooriaarab/agentic-search",
-  "description": "Search for documents, sheets, slides, files and comments, filtered by what the caller may read.",
-  "version": "0.7.1",
+  "description": "Search for documents, sheets, slides, tables, tasks, forms, boards, files and comments, filtered by what the caller may read.",
+  "version": "0.8.0",
   "repository": {
     "url": "https://github.com/pooriaarab/agentic-search",
     "source": "github"
@@ -12,7 +12,7 @@
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "agentic-search",
-      "version": "0.7.1",
+      "version": "0.8.0",
       "transport": { "type": "stdio" },
       "runtimeHint": "npx",
       "packageArguments": [

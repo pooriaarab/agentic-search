@@ -135,3 +135,21 @@ test("the demo API is read-only", async ({ request }) => {
   expect((await request.delete("/api/v1/owners/demo")).status()).toBe(404);
   expect((await request.get("/api/v1/owners/demo/export")).status()).toBe(404);
 });
+
+test("new suite kinds appear as selectable result groups", async ({ page }) => {
+  await page.goto("/");
+  const kinds = ["table", "task", "form", "board"];
+  await page.route("**/api/v1/search", (route) => route.fulfill({
+    json: { hits: kinds.map((kind) => ({
+      id: kind, kind, title: `Budget ${kind}`, titleHighlights: [],
+      snippet: { text: "Budget notes", highlights: [] },
+      resource: { type: kind, id: kind }, owner: "u1", updatedAt: 1,
+    })) },
+  }));
+  await field(page).fill("budget");
+  const list = page.getByRole("listbox", { name: "Search" });
+  await expect(list.getByRole("option")).toHaveCount(4);
+  expect(await list.locator(".agd-search__group-title").allTextContents()).toEqual(["Tables", "Tasks", "Forms", "Boards"]);
+  await page.keyboard.press("ArrowDown");
+  await expect(list.getByRole("option").first()).toHaveAttribute("aria-selected", "true");
+});

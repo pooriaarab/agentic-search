@@ -1,6 +1,6 @@
 ---
 name: agentic-search
-description: Search documents, sheets, slides, files and comments with access filtering. Index, remove, search and reindex items.
+description: Search documents, sheets, slides, tables, tasks, forms, boards, files and comments with access filtering. Index, remove, search and reindex items.
 ---
 
 # agentic-search

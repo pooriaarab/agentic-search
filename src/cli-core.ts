@@ -13,7 +13,7 @@ export interface CliIo {
 
 const HELP = [
   `agentic-search ${VERSION}`,
-  "Search for documents, sheets, slides, files and comments.",
+  "Search for documents, sheets, slides, tables, tasks, forms, boards, files and comments.",
   "",
   "Usage: agentic-search <command> [flags]",
   "",

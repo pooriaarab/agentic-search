@@ -1,6 +1,6 @@
 import { PRINCIPAL_KINDS } from "agentic-identity";
 
-export const ITEM_KINDS = ["document", "sheet", "slide", "file", "comment"] as const;
+export const ITEM_KINDS = ["document", "sheet", "slide", "table", "task", "form", "board", "file", "comment"] as const;
 export type ItemKind = (typeof ITEM_KINDS)[number];
 
 /** The thing an indexed item belongs to, for example the document a comment sits on. */

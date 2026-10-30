@@ -1,7 +1,7 @@
 import { defineConfig } from "@playwright/test";
 import { fileURLToPath } from "node:url";
 
-const PORT = 8792;
+const PORT = Number(process.env.SEARCH_E2E_PORT ?? 8792);
 const wrangler = fileURLToPath(new URL("./node_modules/wrangler/bin/wrangler.js", import.meta.url));
 
 // The tests run against the real demo Worker under `wrangler dev`. Run `npm run build` first.

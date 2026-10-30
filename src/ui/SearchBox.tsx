@@ -4,7 +4,7 @@ import type { ItemKind, SearchHit, SearchPage, SearchRequest } from "../core/typ
 import { highlighted } from "./highlight.js";
 
 /** The order of the groups. It matches `ITEM_KINDS`, which the UI does not import because it pulls in Node code. */
-const KIND_ORDER: readonly ItemKind[] = ["document", "sheet", "slide", "file", "comment"];
+const KIND_ORDER: readonly ItemKind[] = ["document", "sheet", "slide", "table", "task", "form", "board", "file", "comment"];
 
 export interface SearchBoxLabels {
   /** The accessible name of the search field. */
@@ -24,14 +24,14 @@ export interface SearchBoxLabels {
 
 export const DEFAULT_LABELS: SearchBoxLabels = {
   field: "Search",
-  placeholder: "Search documents, sheets, slides, files and comments",
+  placeholder: "Search documents, sheets, slides, tables, tasks, forms, boards, files and comments",
   loading: "Searching",
   empty: "No results",
   emptyHint: "Try other words, or check the spelling.",
   error: "The search failed. Check your connection and try again.",
   retry: "Try again",
   clear: "Clear search",
-  kinds: { document: "Documents", sheet: "Sheets", slide: "Slides", file: "Files", comment: "Comments" },
+  kinds: { document: "Documents", sheet: "Sheets", slide: "Slides", table: "Tables", task: "Tasks", form: "Forms", board: "Boards", file: "Files", comment: "Comments" },
   results: (count) => (count === 1 ? "1 result" : `${count} results`),
 };
 
