@@ -43,13 +43,17 @@ async function collect<T extends { id: string; owner: string }>(
   validate: (row: T) => T,
 ): Promise<T[]> {
   const out: T[] = [];
+  const seen = new Set<string>();
   let after: string | undefined;
   for (;;) {
     const rows = await read({ limit: 100, after });
     if (!Array.isArray(rows) || rows.length > 100) throw new Error("invalid account page");
     for (const raw of rows) {
       const row = validate(raw);
-      if (row.owner !== owner || (after !== undefined && row.id <= after)) throw new Error("invalid account ownership or order");
+      // Adapters use their own id collation (D1 uses UTF-8, memory uses UTF-16).
+      // The exclusive cursor advances in that order. Repeated ids fail closed.
+      if (row.owner !== owner || seen.has(row.id)) throw new Error("invalid account ownership or repeated id");
+      seen.add(row.id);
       out.push(row);
       after = row.id;
     }

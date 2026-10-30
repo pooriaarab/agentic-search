@@ -188,6 +188,47 @@ npm run deploy:demo
 
 The script runs `wrangler deploy` with `wrangler.demo.jsonc` and turns wrangler telemetry off. Keep the Cloudflare token in your shell. Do not commit it. Do not add it as a CI secret.
 
+## Account export and erase
+
+A trusted host imports `searchAccount` from `agentic-search/account`. It has the
+`AccountPackage<SearchAccountDeps>` shape of the identity account registry:
+`id`, `exportAccount(subject, deps)`, and `eraseAccount(subject, deps)`.
+The installed identity 0.9 release has the older `AccountApp` interface. Use a
+host adapter until the registry release is installed.
+
+```ts
+import { searchAccount } from "agentic-search/account";
+
+const deps = { store, vectors: null }; // null only when search uses no vectors
+const data = await searchAccount.exportAccount({ id: "ada", kind: "human" }, deps);
+const counts = await searchAccount.eraseAccount({ id: "ada", kind: "human" }, deps);
+```
+
+The export has plain JSON collections `items` and `vectors`. Items include their
+full indexed title, text, resource reference, owner, and time. Vector stores must
+also implement `listByOwner(owner, { limit, after })`, ordered by id, including
+orphan vectors. `MemoryVectorStore` implements it. Pass the same stores used by
+search. Erase removes vectors first, then the index rows and postings. Errors
+propagate. A retry finishes an interrupted erase; a completed repeat counts zero.
+Damaged selected rows, foreign owners, and repeated ids stop both calls.
+
+Authorize the request in the host before calling. This is a privileged account
+API, with no search access filter. Stop indexing and other writes during export
+and erase. Owner ids must be unique across all principal kinds: the index stores
+an owner id without a kind. All principal kinds are accepted. With the default
+owner policy, delegated agents write under their `actingFor` owner in the search
+service. Export or erase that
+owner to include those copies. Independent agents use their own owner id.
+
+Each index copy has one owner. Erase removes that owner's copies even when the
+source is shared. Copies owned by others, and the source itself, stay. The source
+package must drop the subject's sharing grants and apply its shared-owner rules.
+Search stores no versions, history, sharing grants, blobs, or author identity.
+It cannot find contributions authored by the subject in another owner's text,
+or label that text as machine-made. Run source account contributors as well;
+they own authorship labels and erase. Refresh or remove affected index copies
+before searches resume, so stale text from a source erase does not stay here.
+
 ## Limits
 
 - The memory index scans every item per query. Use it for tests and small sets.
@@ -212,43 +253,3 @@ npm run ci:local
 ## License
 
 MIT.
-
-## Account export and erase
-
-A trusted host imports `searchAccount` from `agentic-search/account`. It has the
-`AccountPackage<SearchAccountDeps>` shape of the identity account registry:
-`id`, `exportAccount(subject, deps)`, and `eraseAccount(subject, deps)`.
-The installed identity 0.9 release has the older `AccountApp` interface. Use a
-host adapter until the registry release is installed.
-
-```ts
-import { searchAccount } from "agentic-search/account";
-
-const deps = { store, vectors: null }; // null only when search uses no vectors
-const data = await searchAccount.exportAccount({ id: "ada", kind: "human" }, deps);
-const counts = await searchAccount.eraseAccount({ id: "ada", kind: "human" }, deps);
-```
-
-The export has plain JSON collections `items` and `vectors`. Items include their
-full indexed title, text, resource reference, owner, and time. Vector stores must
-also implement `listByOwner(owner, { limit, after })`, ordered by id, including
-orphan vectors. `MemoryVectorStore` implements it. Pass the same stores used by
-search. Erase removes vectors first, then the index rows and postings. Errors
-propagate. A retry finishes an interrupted erase; a completed repeat counts zero.
-Damaged selected rows, foreign owners, and invalid page order stop both calls.
-
-Authorize the request in the host before calling. This is a privileged account
-API, with no search access filter. Stop indexing and other writes during export
-and erase. Owner ids must be unique across all principal kinds: the index stores
-an owner id without a kind. All principal kinds are accepted. With the default owner policy, delegated agents
-write under their `actingFor` owner in the search service. Export or erase that
-owner to include those copies. Independent agents use their own owner id.
-
-Each index copy has one owner. Erase removes that owner's copies even when the
-source is shared. Copies owned by others, and the source itself, stay. The source
-package must drop the subject's sharing grants and apply its shared-owner rules.
-Search stores no versions, history, sharing grants, blobs, or author identity.
-It cannot find contributions authored by the subject in another owner's text,
-or label that text as machine-made. Run source account contributors as well;
-they own authorship labels and erase. Refresh or remove affected index copies
-before searches resume, so stale text from a source erase does not stay here.

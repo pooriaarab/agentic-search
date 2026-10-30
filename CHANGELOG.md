@@ -4,7 +4,7 @@
 
 - Add `agentic-search/account` with a typed account registry contributor.
 - Export owner index copies and vectors; erase both with safe retries.
-- Refuse damaged account rows and invalid ownership or page order.
+- Refuse damaged account rows and invalid ownership or repeated ids.
 - Document shared-source and authorship boundaries for host account workflows.
 
 ## 0.6.3

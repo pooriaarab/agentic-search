@@ -85,3 +85,16 @@ test("account export and erase validate D1 records and remove every index copy",
   await searchAccount.eraseAccount({ id: "u2", kind: "human" }, deps);
   expect(await postingCount(db)).toBe(0);
 });
+
+test("account pagination accepts D1 Unicode order across and within pages", async () => {
+  const store = new D1Index(await freshDb());
+  const subject = { id: "u1", kind: "human" } as const;
+  const ids = [...Array.from({ length: 100 }, (_, i) => `a${i}`), "！a", "😀b"];
+  await store.upsert(ids.map((id) => item(id)));
+  const deps = { store, vectors: null };
+  const exported = await searchAccount.exportAccount(subject, deps);
+  expect(exported.items).toHaveLength(102);
+  expect(exported.items.slice(-2)).toMatchObject([{ id: "！a" }, { id: "😀b" }]);
+  expect(await searchAccount.eraseAccount(subject, deps)).toEqual({ items: 102, vectors: 0 });
+  expect(await store.get("😀b")).toBeNull();
+});
