@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.1 - 2026-10-30
+
+**Changed**
+
+- Accept agentic-design 0.10.x and test with current shared package releases.
+
 ## 0.8.0 - 2026-10-30
 
 **Added**
