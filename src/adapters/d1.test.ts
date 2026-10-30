@@ -1,3 +1,4 @@
+import { searchAccount } from "../account.js";
 import { Miniflare } from "miniflare";
 import { afterAll, beforeAll, expect, test } from "vitest";
 import { D1Index, type D1Like } from "./d1.js";
@@ -63,4 +64,37 @@ test("erase leaves no posting rows behind", async () => {
   await s.removeByOwner("u1");
   expect(await postingCount(db)).toBe(0);
   expect(await s.search({ terms: queryTerms("secret"), filter: {}, limit: 5 })).toEqual([]);
+});
+
+// Account operations must reach the real adapter and remove postings too.
+test("account export and erase validate D1 records and remove every index copy", async () => {
+  const db = await freshDb();
+  const store = new D1Index(db);
+  const deps = { store, vectors: null };
+  const subject = { id: "u1", kind: "human" } as const;
+  await store.upsert([item("a"), item("b", { owner: "u2" })]);
+  expect((await searchAccount.exportAccount(subject, deps)).items).toHaveLength(1);
+  await db.batch([db.prepare("UPDATE search_items SET updated_at = -1 WHERE id = 'a'")]);
+  await expect(searchAccount.eraseAccount(subject, deps)).rejects.toThrow();
+  expect(await postingCount(db)).toBeGreaterThan(0);
+  await db.batch([db.prepare("UPDATE search_items SET updated_at = 1 WHERE id = 'a'")]);
+  expect(await searchAccount.eraseAccount(subject, deps)).toEqual({ items: 1, vectors: 0 });
+  expect(await store.get("a")).toBeNull();
+  expect(await store.get("b")).not.toBeNull();
+  expect(await searchAccount.eraseAccount(subject, deps)).toEqual({ items: 0, vectors: 0 });
+  await searchAccount.eraseAccount({ id: "u2", kind: "human" }, deps);
+  expect(await postingCount(db)).toBe(0);
+});
+
+test("account pagination accepts D1 Unicode order across and within pages", async () => {
+  const store = new D1Index(await freshDb());
+  const subject = { id: "u1", kind: "human" } as const;
+  const ids = [...Array.from({ length: 100 }, (_, i) => `a${i}`), "！a", "😀b"];
+  await store.upsert(ids.map((id) => item(id)));
+  const deps = { store, vectors: null };
+  const exported = await searchAccount.exportAccount(subject, deps);
+  expect(exported.items).toHaveLength(102);
+  expect(exported.items.slice(-2)).toMatchObject([{ id: "！a" }, { id: "😀b" }]);
+  expect(await searchAccount.eraseAccount(subject, deps)).toEqual({ items: 102, vectors: 0 });
+  expect(await store.get("😀b")).toBeNull();
 });
